@@ -5,8 +5,8 @@ export const CONFIG = {
 
   // 수파베이스 프로젝트 주소와 공개용 키(sb_publishable_...). 비어 있으면 테스트 모드로 돈다.
   // 공개용 키는 브라우저에 노출되도록 만들어진 키라 여기 적어도 된다. 비밀 키(sb_secret_...)는 절대 넣지 않는다.
-  supabaseUrl: '',
-  supabaseKey: '',
+  supabaseUrl: 'https://wnxlbziolxpwrebzhvbb.supabase.co',
+  supabaseKey: 'sb_publishable_fWqyQpbu-C96Jg4feBgAuA_4k7hDupO',
   bucket: 'photos',
 
   countdownSeconds: 5,      // 컷마다 카운트다운
