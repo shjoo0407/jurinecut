@@ -1,0 +1,10 @@
+{
+  "name": "주리네컷",
+  "short_name": "주리네컷",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0f0f14",
+  "theme_color": "#0f0f14"
+}
