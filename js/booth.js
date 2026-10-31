@@ -69,9 +69,19 @@ function goHome() {
 }
 
 async function startSession() {
+  enterFullscreen();
   unlockAudio();
   keepAwake();
   if (await ensureCamera()) show('layout');
+}
+
+// 사파리 탭에서 쓸 때 주소창을 숨긴다. 홈 화면 앱은 이미 전체 화면이라 건너뛴다.
+function enterFullscreen() {
+  const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  if (standalone || document.fullscreenElement || document.webkitFullscreenElement) return;
+  const el = document.documentElement;
+  const request = el.requestFullscreen ?? el.webkitRequestFullscreen;
+  request?.call(el)?.catch?.(() => {});
 }
 
 // ---- 레이아웃·프레임 고르기 ----
@@ -132,8 +142,10 @@ function choiceCard(action, id, title, desc, canvas) {
 
 // ---- 촬영 ----
 
+// 아이패드는 카메라가 꺼진 채 1분이 지나면 권한을 다시 묻는다.
+// 그래서 앱이 켜질 때 한 번 켜고 끄지 않으며, 정말 끊긴 경우에만 다시 요청한다.
 async function ensureCamera() {
-  if (state.stream?.active) return true;
+  if (state.stream?.getVideoTracks().some((track) => track.readyState === 'live')) return true;
   try {
     state.stream = await startCamera($('#video'));
     return true;
@@ -347,3 +359,4 @@ $('#event-line').textContent = `${CONFIG.eventTitle} · ${CONFIG.eventDate}`;
 $('.viewfinder').classList.toggle('mirror', CONFIG.mirror);
 renderLayoutChoices();
 syncPending();
+ensureCamera(); // 운영진이 앱을 켤 때 권한을 한 번 허용해 두면 손님에게는 묻지 않는다
