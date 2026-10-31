@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="주리네컷">
+  <meta name="theme-color" content="#0f0f14">
+  <title>주리네컷</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/booth.css">
+  <script src="vendor/qrcode.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script type="module" src="js/booth.js"></script>
+</head>
+<body>
+  <section class="screen active" id="screen-start" data-action="start">
+    <p class="eyebrow" id="event-line"></p>
+    <h1 class="title">주리네컷</h1>
+    <p class="tap-hint">화면을 터치해서 시작하세요</p>
+    <p class="status-line" id="status-line"></p>
+  </section>
+
+  <section class="screen" id="screen-layout">
+    <h2>사진 구성을 골라주세요</h2>
+    <div class="choices" id="layout-choices"></div>
+    <nav class="actions">
+      <button class="btn" data-action="home">처음으로</button>
+    </nav>
+  </section>
+
+  <section class="screen" id="screen-frame">
+    <h2>프레임을 골라주세요</h2>
+    <div class="choices" id="frame-choices"></div>
+    <nav class="actions">
+      <button class="btn" data-action="back-layout">이전</button>
+      <button class="btn primary" data-action="to-shoot">촬영하러 가기</button>
+    </nav>
+  </section>
+
+  <section class="screen" id="screen-shoot">
+    <div class="viewfinder">
+      <video id="video" autoplay muted playsinline></video>
+      <div id="countdown"></div>
+      <div id="flash"></div>
+    </div>
+    <aside class="shoot-panel">
+      <p id="shot-counter"></p>
+      <div class="slots" id="shot-slots"></div>
+      <div id="shoot-idle">
+        <button class="btn primary" data-action="shoot-start">촬영 시작</button>
+        <button class="btn" data-action="back-frame">이전</button>
+      </div>
+    </aside>
+  </section>
+
+  <section class="screen" id="screen-review">
+    <h2>이 사진으로 할까요?</h2>
+    <img id="review-image" alt="">
+    <nav class="actions">
+      <button class="btn" data-action="retake">다시 찍기</button>
+      <button class="btn primary" data-action="save">이대로 저장</button>
+    </nav>
+  </section>
+
+  <section class="screen" id="screen-qr">
+    <img id="qr-photo" alt="">
+    <div class="qr-panel" id="qr-panel">
+      <h2>사진 받아가세요!</h2>
+      <div class="qr-box">
+        <img id="qr-code" alt="사진 받기 QR 코드">
+        <div class="spinner"></div>
+      </div>
+      <p id="qr-message"></p>
+      <button class="btn" id="qr-home" data-action="home">처음으로</button>
+    </div>
+  </section>
+
+  <div id="toast" role="status"></div>
+</body>
+</html>
