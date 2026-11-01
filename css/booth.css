@@ -163,10 +163,11 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 
 .pick-side { width: 34vw; display: flex; flex-direction: column; gap: 2.4vh; }
 .pick-side h2 { font-size: clamp(24px, 2.8vw, 36px); }
-.pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.pick-grid .card { padding: 6px; gap: 6px; border-width: 3px; border-radius: 14px; }
-.pick-grid .card canvas { border-radius: 8px; }
-.pick-grid .card strong { font-size: 18px; }
+/* 프레임 목록: 한 줄에 하나씩, 왼쪽 미리보기 + 오른쪽 이름 */
+.pick-grid { display: flex; flex-direction: column; gap: 12px; }
+.pick-grid .card { flex: none; flex-direction: row; gap: 18px; padding: 8px; border-width: 3px; border-radius: 14px; }
+.pick-grid .card canvas { width: 52%; border-radius: 8px; }
+.pick-grid .card strong { font-size: 22px; }
 
 /* ---- QR ---- */
 

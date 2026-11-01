@@ -90,10 +90,9 @@ function pickLayout(id) {
 }
 
 function renderLayoutChoices() {
-  const sample = FRAMES.find((frame) => frame.id === 'white');
   $('#layout-choices').replaceChildren(
     ...Object.values(LAYOUTS).map((layout) =>
-      choiceCard('pick-layout', layout.id, layout.name, layout.desc, renderComposite(layout, sample, [], 0.25)),
+      choiceCard('pick-layout', layout.id, layout.name, layout.desc, renderComposite(layout, FRAMES[0], [], 0.25)),
     ),
   );
 }
