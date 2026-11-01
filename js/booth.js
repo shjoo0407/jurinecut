@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { LAYOUTS, CELL_ASPECT, renderComposite } from './compose.js';
+import { LAYOUTS, CELL_ASPECT, loadAssets, renderComposite } from './compose.js';
 import { FRAMES } from './frames.js';
 import { startCamera, capture } from './camera.js';
 import { unlockAudio, beep, shutter } from './sound.js';
@@ -7,10 +7,14 @@ import {
   isConfigured, newPhotoId, photoPageUrl, savePhoto, uploadPhoto, retryPending, pendingCount,
 } from './storage.js';
 
-// 부스 화면 흐름: 시작 → 레이아웃 → 프레임 → 촬영 → 확인 → QR → 다시 시작
+// 부스 화면 흐름: 시작 → 레이아웃 → 촬영 → 프레임 고르기 → QR → 다시 시작
+// 프레임은 찍은 사진을 넣어 보면서 고른다.
 
 const $ = (selector) => document.querySelector(selector);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const PREVIEW_SCALE = 0.75;
+const THUMB_SCALE = 0.2;
 
 const state = {
   screen: 'start',
@@ -22,23 +26,18 @@ const state = {
   saving: false,
   stream: null,
   wakeLock: null,
-  resultBlob: null,
   resultUrl: null,
   qrTimer: null,
   lastTouch: Date.now(),
 };
 
-const thumbnails = new Map();
-
 const actions = {
   start: startSession,
   home: goHome,
   'pick-layout': (el) => pickLayout(el.dataset.id),
-  'pick-frame': (el) => pickFrame(el.dataset.id),
   'back-layout': () => show('layout'),
-  'back-frame': () => show('frame'),
-  'to-shoot': enterShoot,
   'shoot-start': runSequence,
+  'choose-frame': (el) => chooseFrame(el.dataset.id),
   retake: enterShoot,
   save: saveResult,
 };
@@ -62,7 +61,6 @@ function goHome() {
   state.session += 1;
   clearInterval(state.qrTimer);
   releaseShots();
-  state.frame = FRAMES[0];
   state.saving = false;
   show('start');
   updateStatusLine();
@@ -84,44 +82,20 @@ function enterFullscreen() {
   request?.call(el)?.catch?.(() => {});
 }
 
-// ---- 레이아웃·프레임 고르기 ----
+// ---- 레이아웃 고르기 ----
 
 function pickLayout(id) {
   state.layout = LAYOUTS[id];
-  renderFrameChoices();
-  show('frame');
-}
-
-function pickFrame(id) {
-  state.frame = FRAMES.find((frame) => frame.id === id);
-  for (const card of document.querySelectorAll('#frame-choices .card')) {
-    card.classList.toggle('selected', card.dataset.id === id);
-  }
+  enterShoot();
 }
 
 function renderLayoutChoices() {
+  const sample = FRAMES.find((frame) => frame.id === 'white');
   $('#layout-choices').replaceChildren(
     ...Object.values(LAYOUTS).map((layout) =>
-      choiceCard('pick-layout', layout.id, layout.name, layout.desc, thumbnail(layout, FRAMES[0], 0.25)),
+      choiceCard('pick-layout', layout.id, layout.name, layout.desc, renderComposite(layout, sample, [], 0.25)),
     ),
   );
-}
-
-function renderFrameChoices() {
-  $('#frame-choices').replaceChildren(
-    ...FRAMES.map((frame) => {
-      const card = choiceCard('pick-frame', frame.id, frame.name, '', thumbnail(state.layout, frame, 0.2));
-      card.classList.toggle('selected', frame === state.frame);
-      return card;
-    }),
-  );
-}
-
-// 미리보기 그림은 한 번만 그려 두고 재사용한다
-function thumbnail(layout, frame, scale) {
-  const key = `${layout.id}:${frame.id}:${scale}`;
-  if (!thumbnails.has(key)) thumbnails.set(key, renderComposite(layout, frame, [], scale));
-  return thumbnails.get(key);
 }
 
 function choiceCard(action, id, title, desc, canvas) {
@@ -184,7 +158,7 @@ async function runSequence() {
   } finally {
     state.shooting = false;
   }
-  await showReview();
+  showFramePicker();
 }
 
 async function countdown(seconds) {
@@ -212,32 +186,60 @@ function renderSlots() {
   );
 }
 
-// 아이패드 사파리는 캔버스 메모리 한도가 작아서, 다 쓴 사진은 크기를 0으로 줄여 바로 돌려준다
+// 아이패드 사파리는 캔버스 메모리 한도가 작아서, 다 쓴 그림은 크기를 0으로 줄여 바로 돌려준다
 function releaseShots() {
+  releaseCanvases('#pick-preview canvas, #pick-choices canvas');
   for (const shot of state.shots) shot.width = shot.height = 0;
   state.shots = [];
 }
 
-// ---- 확인 → 저장 → QR ----
-
-async function showReview() {
-  const canvas = renderComposite(state.layout, state.frame, state.shots);
-  state.resultBlob = await new Promise((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', CONFIG.jpegQuality),
-  );
-  canvas.width = canvas.height = 0;
-  if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
-  state.resultUrl = URL.createObjectURL(state.resultBlob);
-  $('#review-image').src = state.resultUrl;
-  show('review');
+function releaseCanvases(selector) {
+  for (const canvas of document.querySelectorAll(selector)) canvas.width = canvas.height = 0;
 }
+
+// ---- 프레임 고르기: 찍은 사진을 프레임마다 넣어 보여준다 ----
+
+function showFramePicker() {
+  state.frame = FRAMES[0];
+  releaseCanvases('#pick-choices canvas');
+  $('#pick-choices').replaceChildren(
+    ...FRAMES.map((frame) => {
+      const card = choiceCard('choose-frame', frame.id, frame.name, '',
+        renderComposite(state.layout, frame, state.shots, THUMB_SCALE));
+      card.classList.toggle('selected', frame === state.frame);
+      return card;
+    }),
+  );
+  renderPreview();
+  show('pick');
+}
+
+function chooseFrame(id) {
+  state.frame = FRAMES.find((frame) => frame.id === id);
+  for (const card of document.querySelectorAll('#pick-choices .card')) {
+    card.classList.toggle('selected', card.dataset.id === id);
+  }
+  renderPreview();
+}
+
+function renderPreview() {
+  releaseCanvases('#pick-preview canvas');
+  $('#pick-preview').replaceChildren(renderComposite(state.layout, state.frame, state.shots, PREVIEW_SCALE));
+}
+
+// ---- 저장 → QR ----
 
 async function saveResult() {
   if (state.saving) return;
   state.saving = true;
   const session = state.session;
   const id = newPhotoId();
-  const blob = state.resultBlob;
+
+  const canvas = renderComposite(state.layout, state.frame, state.shots);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', CONFIG.jpegQuality));
+  canvas.width = canvas.height = 0;
+  if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
+  state.resultUrl = URL.createObjectURL(blob);
 
   $('#qr-photo').src = state.resultUrl;
   $('#qr-code').src = makeQr(photoPageUrl(id));
@@ -299,7 +301,7 @@ function makeQr(url) {
 document.addEventListener('pointerdown', () => { state.lastTouch = Date.now(); }, true);
 setInterval(() => {
   const idle = Date.now() - state.lastTouch > CONFIG.idleResetSeconds * 1000;
-  const resettable = ['layout', 'frame', 'review'].includes(state.screen)
+  const resettable = ['layout', 'pick'].includes(state.screen)
     || (state.screen === 'shoot' && !state.shooting);
   if (idle && resettable) goHome();
 }, 5000);
@@ -355,8 +357,10 @@ function replay(el, className) {
 
 // ---- 시작 ----
 
-$('#event-line').textContent = `${CONFIG.eventTitle} · ${CONFIG.eventDate}`;
+$('#event-line').textContent = `${CONFIG.eventTitle} · ${CONFIG.eventSubtitle}`;
 $('.viewfinder').classList.toggle('mirror', CONFIG.mirror);
-renderLayoutChoices();
+loadAssets()
+  .catch((err) => console.warn('로고를 불러오지 못했어요', err))
+  .finally(renderLayoutChoices);
 syncPending();
 ensureCamera(); // 운영진이 앱을 켤 때 권한을 한 번 허용해 두면 손님에게는 묻지 않는다

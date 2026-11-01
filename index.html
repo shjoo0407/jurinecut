@@ -10,7 +10,8 @@
   <meta name="apple-mobile-web-app-title" content="주리네컷">
   <meta name="theme-color" content="#0f0f14">
   <title>주리네컷</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="assets/icon-180.png">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="css/booth.css">
   <script src="vendor/qrcode.js"></script>
@@ -19,6 +20,7 @@
 </head>
 <body>
   <section class="screen active" id="screen-start" data-action="start">
+    <img class="logo" src="assets/logo.png" alt="주리랑 로고">
     <p class="eyebrow" id="event-line"></p>
     <h1 class="title">주리네컷</h1>
     <p class="tap-hint">화면을 터치해서 시작하세요</p>
@@ -33,15 +35,6 @@
     </nav>
   </section>
 
-  <section class="screen" id="screen-frame">
-    <h2>프레임을 골라주세요</h2>
-    <div class="choices" id="frame-choices"></div>
-    <nav class="actions">
-      <button class="btn" data-action="back-layout">이전</button>
-      <button class="btn primary" data-action="to-shoot">촬영하러 가기</button>
-    </nav>
-  </section>
-
   <section class="screen" id="screen-shoot">
     <div class="viewfinder">
       <video id="video" autoplay muted playsinline></video>
@@ -53,18 +46,23 @@
       <div class="slots" id="shot-slots"></div>
       <div id="shoot-idle">
         <button class="btn primary" data-action="shoot-start">촬영 시작</button>
-        <button class="btn" data-action="back-frame">이전</button>
+        <button class="btn" data-action="back-layout">이전</button>
       </div>
     </aside>
   </section>
 
-  <section class="screen" id="screen-review">
-    <h2>이 사진으로 할까요?</h2>
-    <img id="review-image" alt="">
-    <nav class="actions">
-      <button class="btn" data-action="retake">다시 찍기</button>
-      <button class="btn primary" data-action="save">이대로 저장</button>
-    </nav>
+  <section class="screen" id="screen-pick">
+    <div class="pick-main">
+      <div id="pick-preview"></div>
+      <nav class="actions">
+        <button class="btn" data-action="retake">다시 찍기</button>
+        <button class="btn primary" data-action="save">이대로 저장</button>
+      </nav>
+    </div>
+    <div class="pick-side">
+      <h2>프레임을 골라주세요</h2>
+      <div class="pick-grid" id="pick-choices"></div>
+    </div>
   </section>
 
   <section class="screen" id="screen-qr">

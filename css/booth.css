@@ -4,8 +4,8 @@
   --line: #2c2c37;
   --text: #f5f5f7;
   --muted: #9a9aa8;
-  --accent: #ff6b4a;        /* 동아리 색이 정해지면 여기만 바꾼다 */
-  --accent-text: #ffffff;
+  --accent: #f2a93b;        /* 포스터의 노을빛 */
+  --accent-text: #1c1407;
   --warn: #ffcf66;
   --radius: 20px;
   font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
@@ -62,8 +62,9 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 #screen-start {
   gap: 2vh;
   cursor: pointer;
-  background: radial-gradient(circle at 50% 42%, rgba(255, 107, 74, 0.22), transparent 60%);
+  background: radial-gradient(circle at 50% 42%, rgba(242, 169, 59, 0.2), transparent 60%);
 }
+.logo { height: 15vh; margin-bottom: 2vh; filter: invert(1); }
 .eyebrow { color: var(--muted); font-size: clamp(20px, 2.4vw, 30px); font-weight: 600; }
 .title { font-size: clamp(88px, 13vw, 180px); font-weight: 900; letter-spacing: -0.03em; line-height: 1.05; }
 .tap-hint { margin-top: 3vh; font-size: 26px; font-weight: 700; color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
@@ -71,7 +72,7 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 
 @keyframes pulse { 50% { opacity: 0.35; } }
 
-/* ---- 레이아웃·프레임 고르기 ---- */
+/* ---- 레이아웃 고르기 ---- */
 
 .choices { display: flex; justify-content: center; gap: 2.4vw; width: 100%; }
 
@@ -91,8 +92,6 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 .card span { font-size: 18px; color: var(--muted); }
 .card.selected { border-color: var(--accent); }
 .card:active { transform: scale(0.98); }
-
-#frame-choices { --card-width: 20vw; }
 
 /* ---- 촬영 ---- */
 
@@ -149,9 +148,25 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 #shoot-idle { display: flex; flex-direction: column; gap: 12px; }
 #shoot-idle[hidden] { display: none; }
 
-/* ---- 확인 ---- */
+/* ---- 프레임 고르기: 왼쪽 큰 미리보기, 오른쪽 프레임 목록 ---- */
 
-#review-image { max-width: 86vw; max-height: 66dvh; border-radius: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+#screen-pick { flex-direction: row; gap: 3vw; }
+
+.pick-main { display: flex; flex-direction: column; align-items: center; gap: 3vh; }
+#pick-preview canvas {
+  display: block;
+  width: min(56vw, calc((100dvh - 9vh - 72px) * 1800 / 1580));
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.pick-side { width: 34vw; display: flex; flex-direction: column; gap: 2.4vh; }
+.pick-side h2 { font-size: clamp(24px, 2.8vw, 36px); }
+.pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pick-grid .card { padding: 6px; gap: 6px; border-width: 3px; border-radius: 14px; }
+.pick-grid .card canvas { border-radius: 8px; }
+.pick-grid .card strong { font-size: 18px; }
 
 /* ---- QR ---- */
 

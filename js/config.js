@@ -1,6 +1,7 @@
 // 행사 전에 바꿀 수 있는 값을 모아둔 곳
 export const CONFIG = {
-  eventTitle: '주리랑 창립제',
+  eventTitle: '어우름 창립제',
+  eventSubtitle: '41st Homecoming Day',
   eventDate: '2026.11.14',
 
   // 수파베이스 프로젝트 주소와 공개용 키(sb_publishable_...). 비어 있으면 테스트 모드로 돈다.
