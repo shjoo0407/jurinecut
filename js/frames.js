@@ -1,5 +1,6 @@
 // 프레임 디자인: 검은 바탕에 자수 패치 스티커를 사진 가장자리에 걸쳐 붙인다.
 // 스티커는 '주리랑' 글자, 통기타, 피아노 건반, '41st Homecoming' 배지, '어우름 창립제'.
+// 세로 네 컷은 사진이 길어서 스티커를 조금 키우고 마이크 스티커를 하나 더 붙인다.
 
 import { CONFIG } from './config.js';
 
@@ -21,7 +22,10 @@ export const FRAME = {
   },
 
   // 사진 위에 올라가는 스티커와 날짜. 레이아웃이 달라도 가장자리 근처의 같은 자리에 붙는다.
-  drawOverlay(ctx, { W, H, footerTop }) {
+  // s는 스티커 크기 배율. 스티커가 커져도 캔버스 가장자리와의 간격은 그대로 두도록 위치에도 곱한다.
+  drawOverlay(ctx, { W, H, footerTop, layoutId }) {
+    const strip = layoutId === 'strip';
+    const s = strip ? 1.2 : 1;
     const footerY = (footerTop + H) / 2;
 
     ctx.textAlign = 'center';
@@ -30,28 +34,33 @@ export const FRAME = {
     ctx.font = `600 34px ${SANS}`;
     ctx.fillText(`주리네컷  ·  ${CONFIG.eventDate}`, W / 2, footerY + 70);
 
-    sparkle(ctx, W / 2 - 250, footerY - 10, 26, GOLD);
-    sparkle(ctx, W / 2 - 205, footerY + 28, 12, THREAD);
+    // 세로 네 컷은 아래쪽이 좁아서 별을 날짜 오른쪽으로 옮긴다
+    const [starX, starY] = strip ? [W / 2 + 230, footerY + 60] : [W / 2 - 250, footerY - 10];
+    sparkle(ctx, starX, starY, 26, GOLD);
+    sparkle(ctx, starX + 45, starY + 38, 12, THREAD);
     sparkle(ctx, W - 32, footerTop - 520, 18, THREAD);
 
     // '주리랑' 글자 패치: 오른쪽 위 모서리
-    patch(ctx, { x: W - 230, y: 112, w: 380, h: 132, rotate: 6, shape: 'round' }, () => {
+    patch(ctx, { x: W - 40 - 190 * s, y: 46 + 66 * s, w: 380, h: 132, rotate: 6, shape: 'round', scale: s }, () => {
       ctx.fillStyle = '#ffffff';
       ctx.font = `800 76px ${SANS}`;
       ctx.fillText('주리랑', 22, 4);
       sparkle(ctx, -118, -2, 22, GOLD);
     });
 
+    // 마이크 모양 스티커(세로 네 컷만): 오른쪽 가장자리, 첫째·둘째 사진 사이. 머리가 왼쪽 위를 향한다.
+    if (strip) micSticker(ctx, { x: W - 150, y: footerTop * 0.26, rotate: -30, scale: 1.5 });
+
     // 통기타 모양 스티커: 왼쪽 가장자리, 위아래 사진 사이. 넥이 오른쪽 위를 향한다.
-    guitarSticker(ctx, { x: 175, y: footerTop / 2 + 30, rotate: 32, scale: 1.4 });
+    guitarSticker(ctx, { x: 175 * s, y: footerTop / 2 + 30, rotate: 32, scale: 1.4 * s });
 
     // 피아노 건반 패치: 오른쪽 가장자리, 아래쪽 사진 옆
-    patch(ctx, { x: W - 180, y: footerTop * 0.76, w: 340, h: 156, rotate: 7, shape: 'round' }, () => {
+    patch(ctx, { x: W - 10 - 170 * s, y: footerTop * 0.76, w: 340, h: 156, rotate: 7, shape: 'round', scale: s }, () => {
       drawKeys(ctx);
     });
 
     // 41st 배지: 왼쪽 아래 모서리
-    patch(ctx, { x: 214, y: footerTop + 6, w: 250, h: 286, rotate: -10, shape: 'hexagon' }, () => {
+    patch(ctx, { x: 214 * s, y: footerTop + 6, w: 250, h: 286, rotate: -10, shape: 'hexagon', scale: s }, () => {
       sparkle(ctx, 0, -78, 20, THREAD);
       ctx.fillStyle = GOLD;
       ctx.font = `800 78px ${LATIN}`;
@@ -61,7 +70,7 @@ export const FRAME = {
     });
 
     // '어우름 창립제' 패치: 오른쪽 아래 모서리
-    patch(ctx, { x: W - 300, y: footerTop + 20, w: 470, h: 140, rotate: -5, shape: 'round' }, () => {
+    patch(ctx, { x: W - 65 - 235 * s, y: footerTop + 20, w: 470, h: 140, rotate: -5, shape: 'round', scale: s }, () => {
       ctx.fillStyle = GOLD;
       ctx.font = `800 66px ${SANS}`;
       ctx.fillText(CONFIG.eventTitle, 0, 4);
@@ -70,11 +79,12 @@ export const FRAME = {
 };
 
 // 자수 패치: 그림자 → 크림색 테두리 → 짙은 바탕 → 실 결 → 바느질 점선 → 내용
-function patch(ctx, { x, y, w, h, rotate, shape }, drawContent) {
+function patch(ctx, { x, y, w, h, rotate, shape, scale = 1 }, drawContent) {
   const border = 12;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate((rotate * Math.PI) / 180);
+  ctx.scale(scale, scale);
 
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
@@ -139,16 +149,15 @@ function threadTexture(ctx, w, h, scale) {
   ctx.restore();
 }
 
-// 통기타 모양으로 오려낸 자수 스티커: 크림색 테두리가 기타 윤곽을 따라가고,
-// 안쪽은 짙은 바탕에 금색 울림구멍·브리지·프렛, 크림색 줄.
-// 기타 좌표는 머리 끝 y=-188부터 몸통 끝 y=92까지다.
-function guitarSticker(ctx, { x, y, rotate, scale }) {
-  const unit = 1 / scale; // 캔버스 1px에 해당하는 기타 좌표 길이
+// 모양대로 오려낸 자수 스티커: 크림색 테두리가 윤곽을 따라가고 안쪽은 짙은 바탕.
+// centerY는 그림 좌표에서 스티커 가운데의 y. 그 점을 (x, y)에 놓는다.
+function cutSticker(ctx, { x, y, rotate, scale, centerY }, drawOutline, drawDetails) {
+  const unit = 1 / scale; // 캔버스 1px에 해당하는 그림 좌표 길이
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate((rotate * Math.PI) / 180);
   ctx.scale(scale, scale);
-  ctx.translate(0, 48); // 머리 끝과 몸통 끝의 가운데를 원점에 맞춘다
+  ctx.translate(0, -centerY);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
 
@@ -157,17 +166,28 @@ function guitarSticker(ctx, { x, y, rotate, scale }) {
   ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
   ctx.shadowBlur = 22;
   ctx.shadowOffsetY = 8;
-  guitarOutline(ctx);
+  drawOutline(ctx);
   ctx.lineWidth = 24 * unit;
   ctx.strokeStyle = THREAD;
   ctx.stroke();
   ctx.restore();
 
-  guitarOutline(ctx);
+  drawOutline(ctx);
   ctx.fillStyle = INK;
   ctx.fill();
-  threadTexture(ctx, 140, 400, scale);
+  threadTexture(ctx, 400, 600, scale);
 
+  drawDetails(unit);
+  ctx.restore();
+}
+
+// 통기타 모양 스티커: 금색 울림구멍·브리지·프렛·줄감개, 크림색 줄.
+// 기타 좌표는 머리 끝 y=-188부터 몸통 끝 y=92까지다.
+function guitarSticker(ctx, placement) {
+  cutSticker(ctx, { ...placement, centerY: -48 }, guitarOutline, (unit) => guitarDetails(ctx, unit));
+}
+
+function guitarDetails(ctx, unit) {
   // 바느질 점선: 몸통 안쪽을 한 바퀴
   ctx.save();
   ctx.translate(0, 16);
@@ -211,7 +231,6 @@ function guitarSticker(ctx, { x, y, rotate, scale }) {
     ctx.lineTo(sx, -150);
   }
   ctx.stroke();
-  ctx.restore();
 }
 
 // 기타 전체 윤곽: 몸통 + 넥 + 머리. 겹치는 부분은 하나로 칠해진다.
@@ -237,6 +256,69 @@ function guitarBody(ctx) {
   ctx.arc(0, lower.y, lower.r, lowerStart, Math.PI - lowerStart);
   ctx.arc(0, upper.y, upper.r, upperStart, Math.PI * 3 - upperStart);
   ctx.closePath();
+}
+
+// 마이크 모양 스티커: 동그란 머리(금색 그물망), 금색 띠, 아래로 가늘어지는 손잡이.
+// 마이크 좌표는 머리 끝 y=-102부터 손잡이 끝 y=122까지다.
+const MIC_HEAD = { y: -60, r: 42 };
+
+function micSticker(ctx, placement) {
+  cutSticker(ctx, { ...placement, centerY: 10 }, micOutline, (unit) => micDetails(ctx, unit));
+}
+
+function micOutline(ctx) {
+  ctx.beginPath();
+  ctx.arc(0, MIC_HEAD.y, MIC_HEAD.r, 0, Math.PI * 2);
+  ctx.rect(-24, -24, 48, 18);       // 머리와 손잡이 사이 띠
+  ctx.moveTo(-20, -8);              // 손잡이: 아래로 갈수록 가늘고 끝은 둥글다
+  ctx.lineTo(20, -8);
+  ctx.lineTo(12, 110);
+  ctx.arc(0, 110, 12, 0, Math.PI);
+  ctx.closePath();
+}
+
+function micDetails(ctx, unit) {
+  // 그물망: 머리 안쪽에 금색 사선을 엇갈려 긋는다
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, MIC_HEAD.y, MIC_HEAD.r - 10, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.strokeStyle = GOLD;
+  ctx.lineWidth = 2 * unit;
+  ctx.beginPath();
+  for (let d = -80; d <= 80; d += 10) {
+    ctx.moveTo(d - 40, MIC_HEAD.y - 40);
+    ctx.lineTo(d + 40, MIC_HEAD.y + 40);
+    ctx.moveTo(d + 40, MIC_HEAD.y - 40);
+    ctx.lineTo(d - 40, MIC_HEAD.y + 40);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.strokeStyle = GOLD;
+  ctx.fillStyle = GOLD;
+  ctx.lineWidth = 4 * unit;
+  ctx.beginPath();
+  ctx.arc(0, MIC_HEAD.y, MIC_HEAD.r - 9, 0, Math.PI * 2); // 그물망 테두리
+  ctx.stroke();
+  ctx.fillRect(-24, -24, 48, 18);                          // 띠
+
+  // 손잡이 스위치와 바느질 점선
+  ctx.strokeStyle = THREAD;
+  ctx.lineWidth = 2.5 * unit;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-5, 18, 10, 26, 5);
+  else ctx.rect(-5, 18, 10, 26);
+  ctx.stroke();
+  ctx.setLineDash([9 * unit, 7 * unit]);
+  ctx.strokeStyle = 'rgba(243, 239, 230, 0.35)';
+  ctx.beginPath();
+  ctx.moveTo(-10, 54);
+  ctx.lineTo(-6, 112);
+  ctx.moveTo(10, 54);
+  ctx.lineTo(6, 112);
+  ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 // 피아노 건반: 금색 덮개 아래 흰 건반 10개(도부터 미까지), 그 위에 검은 건반을 얹는다

@@ -105,7 +105,7 @@ function drawPlaceholder(ctx, cell, number) {
 
 function frameBox(layout) {
   const footerTop = Math.max(...layout.cells.map((cell) => cell.y + cell.h));
-  return { W: layout.width, H: layout.height, footerTop };
+  return { W: layout.width, H: layout.height, footerTop, layoutId: layout.id };
 }
 
 function makeCanvas(layout, scale) {
