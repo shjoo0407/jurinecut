@@ -42,10 +42,8 @@ export const FRAME = {
       sparkle(ctx, -118, -2, 22, GOLD);
     });
 
-    // 통기타 패치: 왼쪽 가장자리, 위아래 사진 사이
-    patch(ctx, { x: 170, y: footerTop / 2 + 30, w: 300, h: 224, rotate: -8, shape: 'oval' }, () => {
-      drawGuitar(ctx, 0.75);
-    });
+    // 통기타 모양 스티커: 왼쪽 가장자리, 위아래 사진 사이. 넥이 오른쪽 위를 향한다.
+    guitarSticker(ctx, { x: 175, y: footerTop / 2 + 30, rotate: 32, scale: 1.4 });
 
     // 피아노 건반 패치: 오른쪽 가장자리, 아래쪽 사진 옆
     patch(ctx, { x: W - 180, y: footerTop * 0.76, w: 340, h: 156, rotate: 7, shape: 'round' }, () => {
@@ -90,18 +88,7 @@ function patch(ctx, { x, y, w, h, rotate, shape }, drawContent) {
   outline(ctx, shape, w - border * 2, h - border * 2);
   ctx.fillStyle = INK;
   ctx.fill();
-
-  ctx.save();
-  ctx.clip();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
-  ctx.lineWidth = 2;
-  for (let d = -w - h; d < w + h; d += 7) {
-    ctx.beginPath();
-    ctx.moveTo(d - h / 2, -h / 2);
-    ctx.lineTo(d + h / 2, h / 2);
-    ctx.stroke();
-  }
-  ctx.restore();
+  threadTexture(ctx, w, h, 1);
 
   ctx.setLineDash([9, 7]);
   ctx.lineWidth = 2.5;
@@ -137,9 +124,107 @@ function outline(ctx, shape, w, h) {
   }
 }
 
-// 금색 선으로 그린 통기타. 넥이 오른쪽 위를 향하게 비스듬히 눕힌다.
-// 몸통은 아래쪽 큰 원과 위쪽 작은 원을 이어 붙인 모양이다.
-function drawGuitar(ctx, scale) {
+// 실 결: 짙은 바탕 위에 아주 옅은 사선을 촘촘히 긋는다. 방금 만든 경로 안쪽에만 그린다.
+function threadTexture(ctx, w, h, scale) {
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
+  ctx.lineWidth = 2 / scale;
+  for (let d = -w - h; d < w + h; d += 7 / scale) {
+    ctx.beginPath();
+    ctx.moveTo(d - h / 2, -h / 2);
+    ctx.lineTo(d + h / 2, h / 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// 통기타 모양으로 오려낸 자수 스티커: 크림색 테두리가 기타 윤곽을 따라가고,
+// 안쪽은 짙은 바탕에 금색 울림구멍·브리지·프렛, 크림색 줄.
+// 기타 좌표는 머리 끝 y=-188부터 몸통 끝 y=92까지다.
+function guitarSticker(ctx, { x, y, rotate, scale }) {
+  const unit = 1 / scale; // 캔버스 1px에 해당하는 기타 좌표 길이
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((rotate * Math.PI) / 180);
+  ctx.scale(scale, scale);
+  ctx.translate(0, 48); // 머리 끝과 몸통 끝의 가운데를 원점에 맞춘다
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  // 테두리: 윤곽을 굵게 칠해 바깥으로 12px 두른다(안쪽으로 번진 부분은 바탕이 덮는다)
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetY = 8;
+  guitarOutline(ctx);
+  ctx.lineWidth = 24 * unit;
+  ctx.strokeStyle = THREAD;
+  ctx.stroke();
+  ctx.restore();
+
+  guitarOutline(ctx);
+  ctx.fillStyle = INK;
+  ctx.fill();
+  threadTexture(ctx, 140, 400, scale);
+
+  // 바느질 점선: 몸통 안쪽을 한 바퀴
+  ctx.save();
+  ctx.translate(0, 16);
+  ctx.scale(0.84, 0.87);
+  ctx.translate(0, -16);
+  ctx.beginPath();
+  guitarBody(ctx);
+  ctx.restore();
+  ctx.setLineDash([9 * unit, 7 * unit]);
+  ctx.lineWidth = 2.5 * unit;
+  ctx.strokeStyle = 'rgba(243, 239, 230, 0.35)';
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = GOLD;
+  ctx.fillStyle = GOLD;
+  ctx.lineWidth = 5 * unit;
+  ctx.beginPath();
+  ctx.arc(0, -2, 15, 0, Math.PI * 2); // 울림구멍
+  ctx.stroke();
+  ctx.fillRect(-18, 54, 36, 8);       // 브리지
+
+  ctx.lineWidth = 2.5 * unit;         // 프렛
+  ctx.beginPath();
+  for (const fret of [-82, -104, -124, -142]) {
+    ctx.moveTo(-9, fret);
+    ctx.lineTo(9, fret);
+  }
+  ctx.stroke();
+  for (const [px, py] of [[-6, -176], [6, -176], [-6, -162], [6, -162]]) { // 줄감개
+    ctx.beginPath();
+    ctx.arc(px, py, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = THREAD;           // 줄
+  ctx.lineWidth = 1.4 * unit;
+  ctx.beginPath();
+  for (const sx of [-5, -1.7, 1.7, 5]) {
+    ctx.moveTo(sx, 58);
+    ctx.lineTo(sx, -150);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// 기타 전체 윤곽: 몸통 + 넥 + 머리. 겹치는 부분은 하나로 칠해진다.
+function guitarOutline(ctx) {
+  ctx.beginPath();
+  guitarBody(ctx);
+  ctx.rect(-10, -150, 20, 100);
+  if (ctx.roundRect) ctx.roundRect(-14, -188, 28, 42, 8);
+  else ctx.rect(-14, -188, 28, 42);
+}
+
+// 몸통: 아래쪽 큰 원과 위쪽 작은 원을 이어 붙인 모양(두 원이 만나는 점에서 잘록해진다)
+function guitarBody(ctx) {
   const lower = { y: 40, r: 52 };
   const upper = { y: -22, r: 38 };
   const d = lower.y - upper.y;
@@ -148,57 +233,10 @@ function drawGuitar(ctx, scale) {
   const meetY = lower.y - a;
   const lowerStart = Math.atan2(meetY - lower.y, half);
   const upperStart = Math.atan2(meetY - upper.y, -half);
-
-  ctx.save();
-  ctx.rotate(1.0); // 가로로 긴 타원 패치에 맞게 많이 눕힌다
-  ctx.scale(scale, scale);
-  ctx.translate(0, 47); // 머리(-186)부터 몸통 끝(92)까지의 가운데를 원점에 맞춘다
-  ctx.strokeStyle = GOLD;
-  ctx.fillStyle = GOLD;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.lineWidth = 6;
-
-  ctx.beginPath();
+  ctx.moveTo(half, meetY);
   ctx.arc(0, lower.y, lower.r, lowerStart, Math.PI - lowerStart);
   ctx.arc(0, upper.y, upper.r, upperStart, Math.PI * 3 - upperStart);
   ctx.closePath();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(0, -2, 14, 0, Math.PI * 2); // 울림구멍
-  ctx.stroke();
-  ctx.fillRect(-16, 56, 32, 7);       // 브리지
-
-  ctx.beginPath();                    // 넥
-  ctx.moveTo(-8, -57);
-  ctx.lineTo(-8, -150);
-  ctx.moveTo(8, -57);
-  ctx.lineTo(8, -150);
-  ctx.stroke();
-
-  ctx.beginPath();                    // 머리
-  if (ctx.roundRect) ctx.roundRect(-12, -184, 24, 34, 6);
-  else ctx.rect(-12, -184, 24, 34);
-  ctx.stroke();
-  for (const [x, y] of [[-18, -174], [-18, -160], [18, -174], [18, -160]]) {
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.lineWidth = 2;                  // 프렛과 줄
-  ctx.beginPath();
-  for (const y of [-82, -104, -124, -142]) {
-    ctx.moveTo(-8, y);
-    ctx.lineTo(8, y);
-  }
-  for (const x of [-4, 0, 4]) {
-    ctx.moveTo(x, 56);
-    ctx.lineTo(x, -150);
-  }
-  ctx.stroke();
-  ctx.restore();
 }
 
 // 피아노 건반: 금색 덮개 아래 흰 건반 10개(도부터 미까지), 그 위에 검은 건반을 얹는다
