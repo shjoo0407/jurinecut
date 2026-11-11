@@ -69,6 +69,17 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 .title { font-size: clamp(88px, 13vw, 180px); font-weight: 900; letter-spacing: -0.03em; line-height: 1.05; }
 .tap-hint { margin-top: 3vh; font-size: 26px; font-weight: 700; color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
 .status-line { position: absolute; right: 32px; bottom: 24px; font-size: 16px; color: var(--muted); }
+.music-toggle {
+  position: absolute;
+  top: max(24px, env(safe-area-inset-top));
+  right: 28px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  font-size: 28px;
+}
 
 @keyframes pulse { 50% { opacity: 0.35; } }
 
@@ -148,26 +159,16 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 #shoot-idle { display: flex; flex-direction: column; gap: 12px; }
 #shoot-idle[hidden] { display: none; }
 
-/* ---- 프레임 고르기: 왼쪽 큰 미리보기, 오른쪽 프레임 목록 ---- */
+/* ---- 확인 ---- */
 
-#screen-pick { flex-direction: row; gap: 3vw; }
-
-.pick-main { display: flex; flex-direction: column; align-items: center; gap: 3vh; }
-#pick-preview canvas {
+#screen-review { gap: 2.5vh; }
+#review-preview canvas {
   display: block;
-  width: min(56vw, calc((100dvh - 9vh - 72px) * 1800 / 1580));
+  width: min(80vw, calc((100dvh - 12vh - 72px - 50px) * 1800 / 1580));
   height: auto;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
-
-.pick-side { width: 34vw; display: flex; flex-direction: column; gap: 2.4vh; }
-.pick-side h2 { font-size: clamp(24px, 2.8vw, 36px); }
-/* 프레임 목록: 한 줄에 하나씩, 왼쪽 미리보기 + 오른쪽 이름 */
-.pick-grid { display: flex; flex-direction: column; gap: 12px; }
-.pick-grid .card { flex: none; flex-direction: row; gap: 18px; padding: 8px; border-width: 3px; border-radius: 14px; }
-.pick-grid .card canvas { width: 52%; border-radius: 8px; }
-.pick-grid .card strong { font-size: 22px; }
 
 /* ---- QR ---- */
 
@@ -204,6 +205,8 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 .qr-panel:not([data-state="uploading"]) .spinner { display: none; }
 
 #qr-message { font-size: 22px; line-height: 1.5; white-space: pre-line; }
+#qr-video { font-size: 18px; line-height: 1.5; color: var(--muted); }
+#qr-video:empty { display: none; }
 .qr-panel[data-state="delayed"] #qr-message,
 .qr-panel[data-state="demo"] #qr-message { color: var(--warn); }
 

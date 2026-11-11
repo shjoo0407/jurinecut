@@ -10,10 +10,14 @@ export const CONFIG = {
   supabaseKey: 'sb_publishable_fWqyQpbu-C96Jg4feBgAuA_4k7hDupO',
   bucket: 'photos',
 
+  videoEnabled: true,       // 촬영 과정 영상 만들기
+  videoMusic: true,         // 영상에 배경음악 깔기
+  musicVolume: 0.3,         // 부스 배경음악 크기(0~1)
+
   countdownSeconds: 5,      // 컷마다 카운트다운
   qrScreenSeconds: 60,      // QR 화면이 떠 있는 시간
   idleResetSeconds: 90,     // 아무도 안 만지면 처음 화면으로
-  uploadTimeoutSeconds: 20, // 업로드를 기다리는 최대 시간
+  uploadTimeoutSeconds: 30, // 업로드를 기다리는 최대 시간(영상은 사진보다 커서 넉넉히)
   mirror: true,             // 거울처럼 좌우 반전해서 보여주고 저장
   jpegQuality: 0.9,
 };

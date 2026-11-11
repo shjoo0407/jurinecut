@@ -1,13 +1,10 @@
-import { CONFIG } from './config.js';
+import { FRAME } from './frames.js';
 
-// 휴대폰에 저장되는 최종 사진 한 장의 크기(px). 아래쪽에 로고와 행사 이름이 들어간다.
+// 휴대폰에 저장되는 최종 사진 한 장의 크기(px). 아래쪽에 스티커와 날짜가 들어간다.
 export const CANVAS = { width: 1800, height: 1580 };
 
 // 컷 하나의 가로:세로 비율. 아이패드를 가로로 세우므로 가로로 긴 4:3을 쓴다.
 export const CELL_ASPECT = 4 / 3;
-
-const SANS = '"Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
-const LATIN = '"Helvetica Neue", "Apple SD Gothic Neo", sans-serif';
 
 export const LAYOUTS = {
   grid: {
@@ -42,72 +39,88 @@ export async function loadAssets() {
   logo = img;
 }
 
-// 레이아웃과 프레임에 맞춰 사진들을 한 장으로 합친다.
+// 찍은 사진들을 프레임에 넣어 한 장으로 합친다.
 // photos가 비어 있으면 번호가 적힌 자리 표시로 채운다(레이아웃 고르기 화면의 미리보기용).
-export function renderComposite(layout, frame, photos = [], scale = 1) {
-  const { width: W, height: H } = CANVAS;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(W * scale);
-  canvas.height = Math.round(H * scale);
-  const ctx = canvas.getContext('2d');
-  ctx.scale(scale, scale);
-
-  const footerTop = Math.max(...layout.cells.map((cell) => cell.y + cell.h));
-  frame.drawBackground(ctx, { W, H, footerTop });
-
+export function renderComposite(layout, photos = [], scale = 1) {
+  const { canvas, ctx } = makeCanvas(scale);
+  const box = frameBox(layout);
+  FRAME.drawBackground(ctx, box);
   layout.cells.forEach((cell, i) => {
-    ctx.save();
-    clipRounded(ctx, cell, frame.radius ?? 14);
-    if (photos[i]) {
-      ctx.drawImage(photos[i], cell.x, cell.y, cell.w, cell.h);
-    } else {
-      ctx.fillStyle = frame.placeholder;
-      ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
-      ctx.fillStyle = frame.sub;
-      ctx.font = `300 ${Math.round(cell.h / 4)}px ${SANS}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(i + 1), cell.x + cell.w / 2, cell.y + cell.h / 2);
-    }
-    ctx.restore();
+    withCellClip(ctx, cell, () => {
+      if (photos[i]) {
+        ctx.drawImage(photos[i], cell.x, cell.y, cell.w, cell.h);
+      } else {
+        drawPlaceholder(ctx, cell, i + 1);
+      }
+    });
   });
-
-  drawFooter(ctx, frame, W, (footerTop + H) / 2);
+  FRAME.drawOverlay(ctx, box, { logoIn });
   return canvas;
 }
 
-// 아래쪽: 왼쪽에 로고와 행사 이름, 오른쪽에 주리네컷과 날짜
-function drawFooter(ctx, frame, W, centerY) {
-  let textX = 60;
-  const mark = logoIn(frame.logo);
-  if (mark) {
-    const h = 150;
-    const w = (h * mark.width) / mark.height;
-    ctx.drawImage(mark, 60, centerY - h / 2, w, h);
-    textX += w + 34;
-  }
-
-  ctx.textBaseline = 'alphabetic';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = frame.text;
-  ctx.font = `300 68px ${SANS}`;
-  ctx.fillText(CONFIG.eventTitle, textX, centerY + 6);
-  ctx.fillStyle = frame.sub;
-  ctx.font = `300 34px ${LATIN}`;
-  ctx.fillText(CONFIG.eventSubtitle, textX + 2, centerY + 56);
-
-  ctx.textAlign = 'right';
-  ctx.fillStyle = frame.text;
-  ctx.font = `600 46px ${SANS}`;
-  ctx.fillText('주리네컷', W - 60, centerY + 6);
-  ctx.fillStyle = frame.sub;
-  ctx.font = `300 32px ${LATIN}`;
-  ctx.fillText(CONFIG.eventDate, W - 60, centerY + 56);
+// 영상 합성용: 사진 칸 아래에 깔리는 배경, 위에 올라가는 스티커를 따로 그려 둔다
+export function renderLayer(layout, which, scale) {
+  const { canvas, ctx } = makeCanvas(scale);
+  const box = frameBox(layout);
+  if (which === 'background') FRAME.drawBackground(ctx, box);
+  else FRAME.drawOverlay(ctx, box, { logoIn });
+  return canvas;
 }
 
-// 검은 로고를 프레임에 맞는 색으로 바꾼다. 색마다 한 번만 만든다.
+// 원본(카메라 영상 등)의 가운데를 칸 비율로 잘라 그린다. 거울 모드면 좌우를 뒤집는다.
+// 카메라 미리보기(CSS object-fit: cover)와 같은 영역이라 화면에서 본 그대로 담긴다.
+export function drawCover(ctx, source, sourceW, sourceH, { x, y, w, h }, mirror) {
+  const aspect = w / h;
+  const sw = Math.min(sourceW, sourceH * aspect);
+  const sh = sw / aspect;
+  ctx.save();
+  if (mirror) {
+    ctx.translate(x + w, y);
+    ctx.scale(-1, 1);
+  } else {
+    ctx.translate(x, y);
+  }
+  ctx.drawImage(source, (sourceW - sw) / 2, (sourceH - sh) / 2, sw, sh, 0, 0, w, h);
+  ctx.restore();
+}
+
+export function withCellClip(ctx, cell, draw) {
+  ctx.save();
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(cell.x, cell.y, cell.w, cell.h, FRAME.radius);
+  else ctx.rect(cell.x, cell.y, cell.w, cell.h);
+  ctx.clip();
+  draw();
+  ctx.restore();
+}
+
+function drawPlaceholder(ctx, cell, number) {
+  ctx.fillStyle = FRAME.placeholder;
+  ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
+  ctx.fillStyle = FRAME.placeholderText;
+  ctx.font = `300 ${Math.round(cell.h / 4)}px "Apple SD Gothic Neo", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), cell.x + cell.w / 2, cell.y + cell.h / 2);
+}
+
+function frameBox(layout) {
+  const footerTop = Math.max(...layout.cells.map((cell) => cell.y + cell.h));
+  return { W: CANVAS.width, H: CANVAS.height, footerTop };
+}
+
+function makeCanvas(scale) {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(CANVAS.width * scale);
+  canvas.height = Math.round(CANVAS.height * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  return { canvas, ctx };
+}
+
+// 검은 로고를 원하는 색으로 바꾼다. 색마다 한 번만 만든다.
 function logoIn(color) {
-  if (!logo || !color) return null;
+  if (!logo) return null;
   if (!tintedLogos.has(color)) {
     const canvas = document.createElement('canvas');
     canvas.width = logo.naturalWidth;
@@ -120,11 +133,4 @@ function logoIn(color) {
     tintedLogos.set(color, canvas);
   }
   return tintedLogos.get(color);
-}
-
-function clipRounded(ctx, { x, y, w, h }, radius) {
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(x, y, w, h, radius);
-  else ctx.rect(x, y, w, h);
-  ctx.clip();
 }

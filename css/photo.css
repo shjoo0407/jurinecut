@@ -42,10 +42,13 @@ h1 { margin: 4px 0 0; font-size: 40px; font-weight: 900; letter-spacing: -0.02em
 }
 .photo img { display: block; width: 100%; border-radius: 8px; }
 .photo img:not([data-ready]) { display: none; }
+.photo video { display: block; width: 100%; border-radius: 8px; background: #000; }
+.photo video[hidden] { display: none; }
+#clip-box { min-height: 120px; margin-top: 12px; }
 
-#status { margin: 0; color: var(--muted); line-height: 1.6; }
+#status, #clip-status { margin: 0; color: var(--muted); line-height: 1.6; }
 
-#save {
+#save, #save-clip {
   min-height: 56px;
   border: 0;
   border-radius: 999px;
@@ -55,6 +58,7 @@ h1 { margin: 4px 0 0; font-size: 40px; font-weight: 900; letter-spacing: -0.02em
   font-size: 18px;
   font-weight: 700;
 }
-#save:disabled { opacity: 0.4; }
+#save:disabled, #save-clip:disabled { opacity: 0.4; }
+#save-clip[hidden], #clip-box[hidden] { display: none; }
 
 #hint { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }

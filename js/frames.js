@@ -1,131 +1,146 @@
-// 프레임 디자인. 주리랑 로고(반짝이는 별)와 '어우름 창립제' 포스터(숲속 무대, 전구 줄)를 참고했다.
-// 프레임마다 배경 그리기 함수와 글자·로고·자리 표시 색을 정한다. 맨 앞 프레임이 처음에 골라져 있다.
+// 프레임 디자인: 검은 바탕에 자수 패치 스티커를 사진 모서리에 걸쳐 붙인다.
+// 스티커는 주리랑 로고, '주리랑' 글자, '어우름 창립제', '41st Homecoming' 배지.
 
-export const FRAMES = [
-  {
-    id: 'score',
-    name: '오선지',
-    text: '#3a2c24',
-    sub: '#8c7a6b',
-    logo: '#3a2c24',
-    placeholder: '#e8dccb',
-    drawBackground(ctx, box) {
-      fill(ctx, box, '#f7f0e4');
-      drawStaves(ctx, box, 'rgba(58, 44, 36, 0.16)');
-    },
-  },
-  {
-    id: 'lights',
-    name: '전구 불빛',
-    text: '#fff6e6',
-    sub: '#e9c98f',
-    logo: '#f2c46d',
-    placeholder: '#2a2219',
-    drawBackground(ctx, box) {
-      const { W, H } = box;
-      const glow = ctx.createRadialGradient(W / 2, H * 0.45, 100, W / 2, H * 0.45, W * 0.8);
-      glow.addColorStop(0, '#2e2318');
-      glow.addColorStop(1, '#0c0a08');
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, W, H);
-      drawBokeh(ctx, box, { seed: 11, count: 46, rgb: '255, 196, 110' });
-      drawStringLights(ctx, box);
-      drawFooterSparkles(ctx, box, '#f2c46d');
-    },
-  },
-  {
-    id: 'forest',
-    name: '숲속 무대',
-    text: '#f4efe2',
-    sub: '#cdbf95',
-    logo: '#d9b866',
-    placeholder: '#2c3a2f',
-    drawBackground(ctx, box) {
-      const { W, H } = box;
-      const ground = ctx.createLinearGradient(0, 0, 0, H);
-      ground.addColorStop(0, '#22312a');
-      ground.addColorStop(1, '#0f1813');
-      ctx.fillStyle = ground;
-      ctx.fillRect(0, 0, W, H);
-      drawBokeh(ctx, box, { seed: 5, count: 60, rgb: '214, 200, 120' });
-    },
-  },
-];
+import { CONFIG } from './config.js';
 
-function fill(ctx, { W, H }, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, W, H);
-}
+const SANS = '"Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+const LATIN = '"Avenir Next", "Helvetica Neue", sans-serif';
 
-// 다섯 줄짜리 오선을 일정 간격으로 반복해 악보 종이처럼 보이게 한다
-function drawStaves(ctx, { W, H }, color) {
-  ctx.strokeStyle = color;
+const INK = '#141416';    // 패치 바탕
+const THREAD = '#f3efe6'; // 테두리 실(크림색)
+const GOLD = '#f5c451';   // 포스터 노을빛에서 가져온 강조색
+
+export const FRAME = {
+  radius: 22,
+  placeholder: '#1e1e22',
+  placeholderText: '#55555c',
+
+  drawBackground(ctx, { W, H }) {
+    ctx.fillStyle = '#0a0a0b';
+    ctx.fillRect(0, 0, W, H);
+  },
+
+  // 사진 위에 올라가는 스티커와 날짜. 레이아웃이 달라도 네 모서리 근처에 같은 자리로 붙는다.
+  drawOverlay(ctx, { W, H, footerTop }, { logoIn }) {
+    const footerY = (footerTop + H) / 2;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#7d7d86';
+    ctx.font = `600 34px ${SANS}`;
+    ctx.fillText(`주리네컷  ·  ${CONFIG.eventDate}`, W / 2, footerY + 70);
+
+    sparkle(ctx, W / 2 - 250, footerY - 10, 26, GOLD);
+    sparkle(ctx, W / 2 - 205, footerY + 28, 12, THREAD);
+    sparkle(ctx, W - 32, footerTop - 520, 18, THREAD);
+
+    // '주리랑' 글자 패치: 오른쪽 위 모서리
+    patch(ctx, { x: W - 230, y: 112, w: 380, h: 132, rotate: 6, shape: 'round' }, () => {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 76px ${SANS}`;
+      ctx.fillText('주리랑', 22, 4);
+      sparkle(ctx, -118, -2, 22, GOLD);
+    });
+
+    // 로고 패치: 왼쪽 가장자리 가운데
+    patch(ctx, { x: 170, y: footerTop / 2 + 30, w: 300, h: 224, rotate: -8, shape: 'oval' }, () => {
+      const mark = logoIn(GOLD);
+      if (!mark) return;
+      const h = 150;
+      const w = (h * mark.width) / mark.height;
+      ctx.drawImage(mark, -w / 2, -h / 2, w, h);
+    });
+
+    // 41st 배지: 왼쪽 아래 모서리
+    patch(ctx, { x: 214, y: footerTop + 6, w: 250, h: 286, rotate: -10, shape: 'hexagon' }, () => {
+      sparkle(ctx, 0, -78, 20, THREAD);
+      ctx.fillStyle = GOLD;
+      ctx.font = `800 78px ${LATIN}`;
+      ctx.fillText('41st', 0, 2);
+      ctx.font = `700 22px ${LATIN}`;
+      ctx.fillText('HOMECOMING', 0, 58);
+    });
+
+    // '어우름 창립제' 패치: 오른쪽 아래 모서리
+    patch(ctx, { x: W - 300, y: footerTop + 20, w: 470, h: 140, rotate: -5, shape: 'round' }, () => {
+      ctx.fillStyle = GOLD;
+      ctx.font = `800 66px ${SANS}`;
+      ctx.fillText(CONFIG.eventTitle, 0, 4);
+    });
+  },
+};
+
+// 자수 패치: 그림자 → 크림색 테두리 → 짙은 바탕 → 실 결 → 바느질 점선 → 내용
+function patch(ctx, { x, y, w, h, rotate, shape }, drawContent) {
+  const border = 12;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((rotate * Math.PI) / 180);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetY = 8;
+  outline(ctx, shape, w, h);
+  ctx.fillStyle = THREAD;
+  ctx.fill();
+  ctx.restore();
+
+  outline(ctx, shape, w - border * 2, h - border * 2);
+  ctx.fillStyle = INK;
+  ctx.fill();
+
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
   ctx.lineWidth = 2;
-  for (let top = 24; top < H; top += 120) {
-    for (let line = 0; line < 5; line++) {
-      const y = top + line * 12;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
-    }
-  }
-}
-
-// 초점이 나간 전구 불빛, 나뭇잎 사이 햇빛 같은 동그란 빛망울
-function drawBokeh(ctx, { W, H }, { seed, count, rgb }) {
-  const rand = seeded(seed);
-  for (let i = 0; i < count; i++) {
-    const x = rand() * W;
-    const y = rand() * H;
-    const r = 24 + rand() * 70;
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, r);
-    glow.addColorStop(0, `rgba(${rgb}, ${0.18 + rand() * 0.22})`);
-    glow.addColorStop(1, `rgba(${rgb}, 0)`);
-    ctx.fillStyle = glow;
+  for (let d = -w - h; d < w + h; d += 7) {
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(d - h / 2, -h / 2);
+    ctx.lineTo(d + h / 2, h / 2);
+    ctx.stroke();
   }
-}
+  ctx.restore();
 
-// 포스터의 전구 줄: 위쪽 여백을 따라 살짝 늘어진 전선과 전구
-function drawStringLights(ctx, { W }) {
-  const sag = (x) => 18 + 22 * Math.sin((Math.PI * x) / W);
-  ctx.strokeStyle = 'rgba(40, 32, 22, 0.9)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  for (let x = 0; x <= W; x += 20) ctx.lineTo(x, sag(x));
+  ctx.setLineDash([9, 7]);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(243, 239, 230, 0.35)';
+  outline(ctx, shape, w - border * 2 - 18, h - border * 2 - 18);
   ctx.stroke();
+  ctx.setLineDash([]);
 
-  for (let x = 45; x < W; x += 90) {
-    const y = sag(x) + 10;
-    const halo = ctx.createRadialGradient(x, y, 0, x, y, 30);
-    halo.addColorStop(0, 'rgba(255, 214, 140, 0.9)');
-    halo.addColorStop(1, 'rgba(255, 214, 140, 0)');
-    ctx.fillStyle = halo;
-    ctx.beginPath();
-    ctx.arc(x, y, 30, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff1cf';
-    ctx.beginPath();
-    ctx.arc(x, y, 7, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  drawContent();
+  ctx.restore();
+}
+
+// (0, 0)을 가운데로 하는 도형 경로
+function outline(ctx, shape, w, h) {
+  ctx.beginPath();
+  if (shape === 'oval') {
+    ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+  } else if (shape === 'hexagon') {
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i - Math.PI / 2;
+      const px = (w / 2) * Math.cos(angle);
+      const py = (h / 2) * Math.sin(angle);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  } else {
+    const r = Math.min(h / 2, 34);
+    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, r);
+    else ctx.rect(-w / 2, -h / 2, w, h);
   }
 }
 
-// 로고의 네 갈래 별을 행사 이름 오른쪽에 몇 개 띄운다
-function drawFooterSparkles(ctx, { H, footerTop }, color) {
-  const cy = (footerTop + H) / 2;
-  ctx.fillStyle = color;
-  sparkle(ctx, 730, cy - 34, 26);
-  sparkle(ctx, 768, cy + 4, 13);
-  sparkle(ctx, 712, cy + 20, 9);
-}
-
-function sparkle(ctx, x, y, r) {
+// 로고의 네 갈래 별
+function sparkle(ctx, x, y, r, color) {
   const w = r * 0.62;
   const k = r * 0.1;
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(x, y - r);
   ctx.quadraticCurveTo(x + k, y - k, x + w, y);
@@ -133,9 +148,4 @@ function sparkle(ctx, x, y, r) {
   ctx.quadraticCurveTo(x - k, y + k, x - w, y);
   ctx.quadraticCurveTo(x - k, y - k, x, y - r);
   ctx.fill();
-}
-
-// 미리보기와 실제 사진에서 무늬 위치가 같도록 고정된 난수열을 쓴다
-function seeded(seed) {
-  return () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 }

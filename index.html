@@ -20,6 +20,7 @@
 </head>
 <body>
   <section class="screen active" id="screen-start" data-action="start">
+    <button class="music-toggle" data-action="toggle-music" aria-pressed="true" aria-label="배경음악 켜기/끄기">🎵</button>
     <img class="logo" src="assets/logo.png" alt="주리랑 로고">
     <p class="eyebrow" id="event-line"></p>
     <h1 class="title">주리네컷</h1>
@@ -51,18 +52,13 @@
     </aside>
   </section>
 
-  <section class="screen" id="screen-pick">
-    <div class="pick-main">
-      <div id="pick-preview"></div>
-      <nav class="actions">
-        <button class="btn" data-action="retake">다시 찍기</button>
-        <button class="btn primary" data-action="save">이대로 저장</button>
-      </nav>
-    </div>
-    <div class="pick-side">
-      <h2>프레임을 골라주세요</h2>
-      <div class="pick-grid" id="pick-choices"></div>
-    </div>
+  <section class="screen" id="screen-review">
+    <h2>이 사진으로 할까요?</h2>
+    <div id="review-preview"></div>
+    <nav class="actions">
+      <button class="btn" data-action="retake">다시 찍기</button>
+      <button class="btn primary" data-action="save">이대로 저장</button>
+    </nav>
   </section>
 
   <section class="screen" id="screen-qr">
@@ -74,6 +70,7 @@
         <div class="spinner"></div>
       </div>
       <p id="qr-message"></p>
+      <p id="qr-video"></p>
       <button class="btn" id="qr-home" data-action="home">처음으로</button>
     </div>
   </section>

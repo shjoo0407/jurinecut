@@ -1,27 +1,26 @@
 import { CONFIG } from './config.js';
 import { LAYOUTS, CELL_ASPECT, loadAssets, renderComposite } from './compose.js';
-import { FRAMES } from './frames.js';
 import { startCamera, capture } from './camera.js';
-import { unlockAudio, beep, shutter } from './sound.js';
+import { canRecordVideo, recordClip, composeVideo } from './video.js';
+import { unlockAudio, startMusic, toggleMusic, duckMusic, beep, shutter } from './sound.js';
 import {
-  isConfigured, newPhotoId, photoPageUrl, savePhoto, uploadPhoto, retryPending, pendingCount,
+  isConfigured, newPhotoId, photoPageUrl, saveFile, uploadFile, retryPending, pendingCount,
 } from './storage.js';
 
-// 부스 화면 흐름: 시작 → 레이아웃 → 촬영 → 프레임 고르기 → QR → 다시 시작
-// 프레임은 찍은 사진을 넣어 보면서 고른다.
+// 부스 화면 흐름: 시작 → 레이아웃 → 촬영 → 확인 → QR → 다시 시작
+// 촬영하는 동안 컷마다 짧은 영상도 녹화해 두었다가, 저장하면 영상 한 편으로 합쳐 함께 올린다.
 
 const $ = (selector) => document.querySelector(selector);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const PREVIEW_SCALE = 0.75;
-const THUMB_SCALE = 0.2;
 
 const state = {
   screen: 'start',
   session: 0,           // 처음으로 돌아갈 때마다 바뀐다. 늦게 끝난 업로드가 다음 손님 화면을 건드리지 않게 한다.
   layout: LAYOUTS.grid,
-  frame: FRAMES[0],
-  shots: [],
+  shots: [],            // 찍은 사진(캔버스)
+  clips: [],            // 컷마다 녹화한 영상 { blob, duration }
   shooting: false,
   saving: false,
   stream: null,
@@ -34,10 +33,15 @@ const state = {
 const actions = {
   start: startSession,
   home: goHome,
+  'toggle-music': (el) => {
+    unlockAudio();
+    const on = toggleMusic();
+    el.textContent = on ? '🎵' : '🔇';
+    el.setAttribute('aria-pressed', String(on));
+  },
   'pick-layout': (el) => pickLayout(el.dataset.id),
   'back-layout': () => show('layout'),
   'shoot-start': runSequence,
-  'choose-frame': (el) => chooseFrame(el.dataset.id),
   retake: enterShoot,
   save: saveResult,
 };
@@ -69,6 +73,7 @@ function goHome() {
 async function startSession() {
   enterFullscreen();
   unlockAudio();
+  startMusic();
   keepAwake();
   if (await ensureCamera()) show('layout');
 }
@@ -91,26 +96,19 @@ function pickLayout(id) {
 
 function renderLayoutChoices() {
   $('#layout-choices').replaceChildren(
-    ...Object.values(LAYOUTS).map((layout) =>
-      choiceCard('pick-layout', layout.id, layout.name, layout.desc, renderComposite(layout, FRAMES[0], [], 0.25)),
-    ),
+    ...Object.values(LAYOUTS).map((layout) => {
+      const card = document.createElement('button');
+      card.className = 'card';
+      card.dataset.action = 'pick-layout';
+      card.dataset.id = layout.id;
+      const name = document.createElement('strong');
+      name.textContent = layout.name;
+      const desc = document.createElement('span');
+      desc.textContent = layout.desc;
+      card.append(renderComposite(layout, [], 0.25), name, desc);
+      return card;
+    }),
   );
-}
-
-function choiceCard(action, id, title, desc, canvas) {
-  const card = document.createElement('button');
-  card.className = 'card';
-  card.dataset.action = action;
-  card.dataset.id = id;
-  const name = document.createElement('strong');
-  name.textContent = title;
-  card.append(canvas, name);
-  if (desc) {
-    const sub = document.createElement('span');
-    sub.textContent = desc;
-    card.append(sub);
-  }
-  return card;
 }
 
 // ---- 촬영 ----
@@ -143,21 +141,37 @@ async function runSequence() {
   if (state.shooting) return;
   state.shooting = true;
   $('#shoot-idle').hidden = true;
+  duckMusic(true);
   try {
     const total = state.layout.shots;
     for (let i = 0; i < total; i++) {
       $('#shot-counter').textContent = `${i + 1} / ${total}`;
+      const clip = startClip();
       await countdown(CONFIG.countdownSeconds);
       replay($('#flash'), 'on');
       shutter();
       state.shots.push(capture($('#video'), CELL_ASPECT, CONFIG.mirror));
       renderSlots();
-      await sleep(900);
+      await sleep(200); // 셔터 직후 모습까지 영상에 담는다
+      const recorded = await clip?.stop().catch((err) => console.warn('컷 영상 녹화 실패', err));
+      if (recorded) state.clips.push(recorded);
+      await sleep(700);
     }
   } finally {
     state.shooting = false;
+    duckMusic(false);
   }
-  showFramePicker();
+  showReview();
+}
+
+function startClip() {
+  if (!canRecordVideo()) return null;
+  try {
+    return recordClip(state.stream);
+  } catch (err) {
+    console.warn('컷 영상 녹화를 시작하지 못했어요', err);
+    return null;
+  }
 }
 
 async function countdown(seconds) {
@@ -187,43 +201,22 @@ function renderSlots() {
 
 // 아이패드 사파리는 캔버스 메모리 한도가 작아서, 다 쓴 그림은 크기를 0으로 줄여 바로 돌려준다
 function releaseShots() {
-  releaseCanvases('#pick-preview canvas, #pick-choices canvas');
+  releaseCanvases('#review-preview canvas');
   for (const shot of state.shots) shot.width = shot.height = 0;
   state.shots = [];
+  state.clips = [];
 }
 
 function releaseCanvases(selector) {
   for (const canvas of document.querySelectorAll(selector)) canvas.width = canvas.height = 0;
 }
 
-// ---- 프레임 고르기: 찍은 사진을 프레임마다 넣어 보여준다 ----
+// ---- 확인 ----
 
-function showFramePicker() {
-  state.frame = FRAMES[0];
-  releaseCanvases('#pick-choices canvas');
-  $('#pick-choices').replaceChildren(
-    ...FRAMES.map((frame) => {
-      const card = choiceCard('choose-frame', frame.id, frame.name, '',
-        renderComposite(state.layout, frame, state.shots, THUMB_SCALE));
-      card.classList.toggle('selected', frame === state.frame);
-      return card;
-    }),
-  );
-  renderPreview();
-  show('pick');
-}
-
-function chooseFrame(id) {
-  state.frame = FRAMES.find((frame) => frame.id === id);
-  for (const card of document.querySelectorAll('#pick-choices .card')) {
-    card.classList.toggle('selected', card.dataset.id === id);
-  }
-  renderPreview();
-}
-
-function renderPreview() {
-  releaseCanvases('#pick-preview canvas');
-  $('#pick-preview').replaceChildren(renderComposite(state.layout, state.frame, state.shots, PREVIEW_SCALE));
+function showReview() {
+  releaseCanvases('#review-preview canvas');
+  $('#review-preview').replaceChildren(renderComposite(state.layout, state.shots, PREVIEW_SCALE));
+  show('review');
 }
 
 // ---- 저장 → QR ----
@@ -233,34 +226,56 @@ async function saveResult() {
   state.saving = true;
   const session = state.session;
   const id = newPhotoId();
+  const layout = state.layout;
+  const clips = state.clips;
+  state.clips = [];
 
-  const canvas = renderComposite(state.layout, state.frame, state.shots);
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', CONFIG.jpegQuality));
+  const canvas = renderComposite(layout, state.shots);
+  const photo = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', CONFIG.jpegQuality));
   canvas.width = canvas.height = 0;
   if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
-  state.resultUrl = URL.createObjectURL(blob);
+  state.resultUrl = URL.createObjectURL(photo);
 
   $('#qr-photo').src = state.resultUrl;
   $('#qr-code').src = makeQr(photoPageUrl(id));
   $('#qr-home').textContent = '처음으로';
   setQrState('uploading');
+  const hasVideo = clips.length === layout.shots;
+  setVideoState(hasVideo ? 'making' : 'none');
   show('qr');
 
-  let result = 'demo';
-  if (isConfigured()) {
-    // 아이패드에 먼저 백업해 두고 올린다. 올리기에 실패해도 나중에 다시 올린다.
-    await savePhoto(id, blob).catch((err) => console.error('백업 실패', err));
-    try {
-      await uploadPhoto(id, blob);
-      result = 'ready';
-    } catch (err) {
-      console.error('업로드 실패', err);
-      result = 'delayed';
-    }
-  }
+  // 영상은 사진과 따로 뒤에서 만들어 올린다. 손님 페이지가 영상이 올라올 때까지 기다린다.
+  if (hasVideo) makeVideo(id, layout, clips, session);
+
+  const result = await storeFile(`${id}.jpg`, photo);
   if (session !== state.session) return;
   setQrState(result);
   startQrTimer();
+}
+
+async function makeVideo(id, layout, clips, session) {
+  let result = 'failed';
+  try {
+    const video = await composeVideo(layout, clips);
+    const ext = video.type.includes('mp4') ? 'mp4' : 'webm';
+    result = await storeFile(`${id}.${ext}`, video);
+  } catch (err) {
+    console.error('영상 만들기 실패', err);
+  }
+  if (session === state.session) setVideoState(result);
+}
+
+// 아이패드에 먼저 백업해 두고 올린다. 올리기에 실패해도 나중에 다시 올린다.
+async function storeFile(name, blob) {
+  if (!isConfigured()) return 'demo';
+  await saveFile(name, blob).catch((err) => console.error('백업 실패', name, err));
+  try {
+    await uploadFile(name, blob);
+    return 'ready';
+  } catch (err) {
+    console.error('업로드 실패', name, err);
+    return 'delayed';
+  }
 }
 
 const QR_MESSAGES = {
@@ -270,9 +285,22 @@ const QR_MESSAGES = {
   demo: '테스트 모드예요.\n저장소가 연결되지 않아 사진이 올라가지 않았어요.',
 };
 
+const VIDEO_MESSAGES = {
+  none: '',
+  making: '🎬 촬영 영상을 만드는 중이에요…',
+  ready: '🎬 촬영 영상도 같은 QR에서 받을 수 있어요',
+  delayed: '🎬 영상은 인터넷이 느려서 조금 늦게 올라가요',
+  demo: '🎬 테스트 모드라 영상은 올라가지 않았어요',
+  failed: '🎬 영상은 만들지 못했어요. 사진은 그대로 받을 수 있어요',
+};
+
 function setQrState(name) {
   $('#qr-panel').dataset.state = name;
   $('#qr-message').textContent = QR_MESSAGES[name];
+}
+
+function setVideoState(name) {
+  $('#qr-video').textContent = VIDEO_MESSAGES[name];
 }
 
 function startQrTimer() {
@@ -300,12 +328,12 @@ function makeQr(url) {
 document.addEventListener('pointerdown', () => { state.lastTouch = Date.now(); }, true);
 setInterval(() => {
   const idle = Date.now() - state.lastTouch > CONFIG.idleResetSeconds * 1000;
-  const resettable = ['layout', 'pick'].includes(state.screen)
+  const resettable = ['layout', 'review'].includes(state.screen)
     || (state.screen === 'shoot' && !state.shooting);
   if (idle && resettable) goHome();
 }, 5000);
 
-// 못 올린 사진은 30초마다, 그리고 인터넷이 다시 연결될 때 다시 올린다
+// 못 올린 파일은 30초마다, 그리고 인터넷이 다시 연결될 때 다시 올린다
 async function syncPending() {
   await retryPending().catch((err) => console.warn('다시 올리기 실패', err));
   updateStatusLine();
@@ -320,7 +348,7 @@ async function updateStatusLine() {
     return;
   }
   const count = await pendingCount().catch(() => 0);
-  el.textContent = count ? `아직 못 올린 사진 ${count}장 · 자동으로 다시 올리는 중` : '';
+  el.textContent = count ? `아직 못 올린 파일 ${count}개 · 자동으로 다시 올리는 중` : '';
 }
 
 // 행사 내내 화면이 꺼지지 않게 한다
