@@ -1,12 +1,10 @@
 import { CONFIG } from './config.js';
-import { CANVAS, renderLayer, drawCover, withCellClip } from './compose.js';
-import { audioContext, loadMusic } from './sound.js';
+import { renderLayer, drawCover, withCellClip } from './compose.js';
 
 // 촬영 과정 영상.
 // 1) 컷마다 카운트다운 동안 카메라 영상을 녹화해 두고
 // 2) 다 찍으면 네 영상을 프레임 칸에 동시에 재생하면서 캔버스를 다시 녹화해 한 편으로 만든다.
 
-const SCALE = 0.6;          // 1080 x 948
 const FPS = 30;
 const BITRATE = 4_000_000;
 const HIDDEN = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
@@ -51,8 +49,9 @@ export async function composeVideo(layout, clips) {
   if (!videos.some(Boolean)) throw new Error('컷 영상을 하나도 열지 못했어요');
   const duration = Math.max(...clips.map((clip) => clip.duration));
 
-  const background = renderLayer(layout, 'background', SCALE);
-  const overlay = renderLayer(layout, 'overlay', SCALE);
+  const scale = layout.videoScale;
+  const background = renderLayer(layout, 'background', scale);
+  const overlay = renderLayer(layout, 'overlay', scale);
   const canvas = document.createElement('canvas');
   canvas.width = background.width;
   canvas.height = background.height;
@@ -61,7 +60,7 @@ export async function composeVideo(layout, clips) {
   const draw = () => {
     ctx.drawImage(background, 0, 0);
     ctx.save();
-    ctx.scale(SCALE, SCALE);
+    ctx.scale(scale, scale);
     layout.cells.forEach((cell, i) => {
       const video = videos[i];
       if (video?.readyState >= 2) {
@@ -74,7 +73,6 @@ export async function composeVideo(layout, clips) {
   };
 
   const stream = canvas.captureStream(FPS);
-  const music = await attachMusic(stream, duration);
   const recorder = recorderFor(stream);
   const done = recordInto(recorder);
 
@@ -82,7 +80,6 @@ export async function composeVideo(layout, clips) {
     await Promise.all(videos.filter(Boolean).map((video) => video.play()));
     draw();
     recorder.start();
-    music?.start();
     const startedAt = performance.now();
     await new Promise((resolve) => {
       const tick = () => {
@@ -97,7 +94,6 @@ export async function composeVideo(layout, clips) {
     recorder.stop();
     return await done;
   } finally {
-    music?.stop();
     stream.getTracks().forEach((track) => track.stop());
     for (const video of videos) {
       if (!video) continue;
@@ -129,35 +125,4 @@ function loadVideo(blob) {
     video.src = URL.createObjectURL(blob);
     document.body.append(video);
   });
-}
-
-// 영상에 배경음악을 깐다. 스피커로는 나가지 않고 녹화에만 들어간다. 끝 0.6초는 소리를 줄인다.
-async function attachMusic(stream, duration) {
-  const ctx = audioContext();
-  if (!CONFIG.videoMusic || !ctx?.createMediaStreamDestination) return null;
-  try {
-    const buffer = await loadMusic();
-    const destination = ctx.createMediaStreamDestination();
-    const gain = ctx.createGain();
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(gain).connect(destination);
-    stream.addTrack(destination.stream.getAudioTracks()[0]);
-    return {
-      start() {
-        const now = ctx.currentTime;
-        gain.gain.setValueAtTime(0.9, now);
-        gain.gain.setValueAtTime(0.9, now + Math.max(0, duration - 0.6));
-        gain.gain.linearRampToValueAtTime(0, now + duration);
-        source.start();
-      },
-      stop() {
-        try { source.stop(); } catch { /* 이미 멈춤 */ }
-        destination.stream.getTracks().forEach((track) => track.stop());
-      },
-    };
-  } catch (err) {
-    console.warn('영상에 음악을 넣지 못했어요', err);
-    return null;
-  }
 }

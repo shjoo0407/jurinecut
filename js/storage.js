@@ -55,7 +55,8 @@ export async function uploadFile(name, blob) {
   }
 }
 
-// 못 올린 파일을 오래된 것부터 다시 올린다. 하나라도 실패하면 멈추고 다음 기회에 이어서 한다.
+// 못 올린 파일을 다시 올린다. 실패한 파일은 건너뛰고 다음 기회에 다시 시도한다.
+// (계속 거절되는 파일 하나가 뒤에 있는 사진들까지 막지 않게 한다)
 export async function retryPending() {
   if (retrying || !isConfigured() || !navigator.onLine) return;
   retrying = true;
@@ -64,7 +65,7 @@ export async function retryPending() {
     for (const name of names) {
       if (inFlight.has(name)) continue;
       const item = await withStore('readonly', (store) => store.get(name));
-      await uploadFile(name, item.blob);
+      await uploadFile(name, item.blob).catch((err) => console.warn('다시 올리기 실패', name, err));
     }
   } finally {
     retrying = false;

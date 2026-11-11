@@ -1,17 +1,19 @@
 import { FRAME } from './frames.js';
 
-// 휴대폰에 저장되는 최종 사진 한 장의 크기(px). 아래쪽에 스티커와 날짜가 들어간다.
-export const CANVAS = { width: 1800, height: 1580 };
-
 // 컷 하나의 가로:세로 비율. 아이패드를 가로로 세우므로 가로로 긴 4:3을 쓴다.
 export const CELL_ASPECT = 4 / 3;
 
+// width·height는 휴대폰에 저장되는 최종 사진 한 장의 크기(px). 아래쪽에 스티커와 날짜가 들어간다.
+// videoScale은 촬영 영상을 만들 때 사진 크기에 곱하는 비율(영상은 사진보다 작게 만든다).
 export const LAYOUTS = {
   grid: {
     id: 'grid',
-    name: '네 컷',
-    desc: '네 번 찍어 2×2로',
+    name: '2×2 네 컷',
+    desc: '바둑판처럼 모아서',
     shots: 4,
+    width: 1800,
+    height: 1580,
+    videoScale: 0.6,
     cells: [
       { x: 60, y: 60, w: 825, h: 619 },
       { x: 915, y: 60, w: 825, h: 619 },
@@ -19,12 +21,20 @@ export const LAYOUTS = {
       { x: 915, y: 709, w: 825, h: 619 },
     ],
   },
-  single: {
-    id: 'single',
-    name: '한 컷',
-    desc: '한 번 찍어 크게',
-    shots: 1,
-    cells: [{ x: 60, y: 60, w: 1680, h: 1260 }],
+  strip: {
+    id: 'strip',
+    name: '1×4 세로 네 컷',
+    desc: '세로로 길게',
+    shots: 4,
+    width: 1180,
+    height: 3640,
+    videoScale: 0.5,
+    cells: [
+      { x: 50, y: 50, w: 1080, h: 810 },
+      { x: 50, y: 890, w: 1080, h: 810 },
+      { x: 50, y: 1730, w: 1080, h: 810 },
+      { x: 50, y: 2570, w: 1080, h: 810 },
+    ],
   },
 };
 
@@ -42,7 +52,7 @@ export async function loadAssets() {
 // 찍은 사진들을 프레임에 넣어 한 장으로 합친다.
 // photos가 비어 있으면 번호가 적힌 자리 표시로 채운다(레이아웃 고르기 화면의 미리보기용).
 export function renderComposite(layout, photos = [], scale = 1) {
-  const { canvas, ctx } = makeCanvas(scale);
+  const { canvas, ctx } = makeCanvas(layout, scale);
   const box = frameBox(layout);
   FRAME.drawBackground(ctx, box);
   layout.cells.forEach((cell, i) => {
@@ -60,7 +70,7 @@ export function renderComposite(layout, photos = [], scale = 1) {
 
 // 영상 합성용: 사진 칸 아래에 깔리는 배경, 위에 올라가는 스티커를 따로 그려 둔다
 export function renderLayer(layout, which, scale) {
-  const { canvas, ctx } = makeCanvas(scale);
+  const { canvas, ctx } = makeCanvas(layout, scale);
   const box = frameBox(layout);
   if (which === 'background') FRAME.drawBackground(ctx, box);
   else FRAME.drawOverlay(ctx, box, { logoIn });
@@ -106,13 +116,13 @@ function drawPlaceholder(ctx, cell, number) {
 
 function frameBox(layout) {
   const footerTop = Math.max(...layout.cells.map((cell) => cell.y + cell.h));
-  return { W: CANVAS.width, H: CANVAS.height, footerTop };
+  return { W: layout.width, H: layout.height, footerTop };
 }
 
-function makeCanvas(scale) {
+function makeCanvas(layout, scale) {
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(CANVAS.width * scale);
-  canvas.height = Math.round(CANVAS.height * scale);
+  canvas.width = Math.round(layout.width * scale);
+  canvas.height = Math.round(layout.height * scale);
   const ctx = canvas.getContext('2d');
   ctx.scale(scale, scale);
   return { canvas, ctx };

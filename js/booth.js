@@ -2,7 +2,7 @@ import { CONFIG } from './config.js';
 import { LAYOUTS, CELL_ASPECT, loadAssets, renderComposite } from './compose.js';
 import { startCamera, capture } from './camera.js';
 import { canRecordVideo, recordClip, composeVideo } from './video.js';
-import { unlockAudio, startMusic, toggleMusic, duckMusic, beep, shutter } from './sound.js';
+import { unlockAudio, beep, shutter } from './sound.js';
 import {
   isConfigured, newPhotoId, photoPageUrl, saveFile, uploadFile, retryPending, pendingCount,
 } from './storage.js';
@@ -33,12 +33,6 @@ const state = {
 const actions = {
   start: startSession,
   home: goHome,
-  'toggle-music': (el) => {
-    unlockAudio();
-    const on = toggleMusic();
-    el.textContent = on ? '🎵' : '🔇';
-    el.setAttribute('aria-pressed', String(on));
-  },
   'pick-layout': (el) => pickLayout(el.dataset.id),
   'back-layout': () => show('layout'),
   'shoot-start': runSequence,
@@ -73,7 +67,6 @@ function goHome() {
 async function startSession() {
   enterFullscreen();
   unlockAudio();
-  startMusic();
   keepAwake();
   if (await ensureCamera()) show('layout');
 }
@@ -141,7 +134,6 @@ async function runSequence() {
   if (state.shooting) return;
   state.shooting = true;
   $('#shoot-idle').hidden = true;
-  duckMusic(true);
   try {
     const total = state.layout.shots;
     for (let i = 0; i < total; i++) {
@@ -159,7 +151,6 @@ async function runSequence() {
     }
   } finally {
     state.shooting = false;
-    duckMusic(false);
   }
   showReview();
 }

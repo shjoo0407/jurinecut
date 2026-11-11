@@ -11,8 +11,6 @@ export const CONFIG = {
   bucket: 'photos',
 
   videoEnabled: true,       // 촬영 과정 영상 만들기
-  videoMusic: true,         // 영상에 배경음악 깔기
-  musicVolume: 0.3,         // 부스 배경음악 크기(0~1)
 
   countdownSeconds: 5,      // 컷마다 카운트다운
   qrScreenSeconds: 60,      // QR 화면이 떠 있는 시간
