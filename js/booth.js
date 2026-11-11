@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { LAYOUTS, CELL_ASPECT, loadAssets, renderComposite } from './compose.js';
+import { LAYOUTS, CELL_ASPECT, renderComposite } from './compose.js';
 import { startCamera, capture } from './camera.js';
 import { canRecordVideo, recordClip, composeVideo } from './video.js';
 import { unlockAudio, beep, shutter } from './sound.js';
@@ -377,8 +377,6 @@ function replay(el, className) {
 
 $('#event-line').textContent = `${CONFIG.eventTitle} · ${CONFIG.eventSubtitle}`;
 $('.viewfinder').classList.toggle('mirror', CONFIG.mirror);
-loadAssets()
-  .catch((err) => console.warn('로고를 불러오지 못했어요', err))
-  .finally(renderLayoutChoices);
+renderLayoutChoices();
 syncPending();
 ensureCamera(); // 운영진이 앱을 켤 때 권한을 한 번 허용해 두면 손님에게는 묻지 않는다

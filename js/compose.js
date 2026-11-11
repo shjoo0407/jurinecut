@@ -38,17 +38,6 @@ export const LAYOUTS = {
   },
 };
 
-let logo = null;
-const tintedLogos = new Map();
-
-// 합성은 그 자리에서 바로 그려야 해서, 로고 이미지를 미리 불러 둔다
-export async function loadAssets() {
-  const img = new Image();
-  img.src = 'assets/logo.png';
-  await img.decode();
-  logo = img;
-}
-
 // 찍은 사진들을 프레임에 넣어 한 장으로 합친다.
 // photos가 비어 있으면 번호가 적힌 자리 표시로 채운다(레이아웃 고르기 화면의 미리보기용).
 export function renderComposite(layout, photos = [], scale = 1) {
@@ -64,7 +53,7 @@ export function renderComposite(layout, photos = [], scale = 1) {
       }
     });
   });
-  FRAME.drawOverlay(ctx, box, { logoIn });
+  FRAME.drawOverlay(ctx, box);
   return canvas;
 }
 
@@ -73,7 +62,7 @@ export function renderLayer(layout, which, scale) {
   const { canvas, ctx } = makeCanvas(layout, scale);
   const box = frameBox(layout);
   if (which === 'background') FRAME.drawBackground(ctx, box);
-  else FRAME.drawOverlay(ctx, box, { logoIn });
+  else FRAME.drawOverlay(ctx, box);
   return canvas;
 }
 
@@ -126,21 +115,4 @@ function makeCanvas(layout, scale) {
   const ctx = canvas.getContext('2d');
   ctx.scale(scale, scale);
   return { canvas, ctx };
-}
-
-// 검은 로고를 원하는 색으로 바꾼다. 색마다 한 번만 만든다.
-function logoIn(color) {
-  if (!logo) return null;
-  if (!tintedLogos.has(color)) {
-    const canvas = document.createElement('canvas');
-    canvas.width = logo.naturalWidth;
-    canvas.height = logo.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(logo, 0, 0);
-    ctx.globalCompositeOperation = 'source-in';
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    tintedLogos.set(color, canvas);
-  }
-  return tintedLogos.get(color);
 }
