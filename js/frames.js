@@ -38,7 +38,7 @@ export const FRAME = {
     const [starX, starY] = strip ? [W / 2 + 230, footerY + 60] : [W / 2 - 250, footerY - 10];
     sparkle(ctx, starX, starY, 26, GOLD);
     sparkle(ctx, starX + 45, starY + 38, 12, THREAD);
-    sparkle(ctx, W - 32, footerTop - 520, 18, THREAD);
+    sparkle(ctx, W - 32, strip ? footerTop - 520 : footerTop * 0.76, 18, THREAD);
 
     // '주리랑' 글자 패치: 오른쪽 위 모서리
     patch(ctx, { x: W - 40 - 190 * s, y: 46 + 66 * s, w: 380, h: 132, rotate: 6, shape: 'round', scale: s }, () => {
@@ -54,8 +54,10 @@ export const FRAME = {
     // 통기타 모양 스티커: 왼쪽 가장자리, 위아래 사진 사이. 넥이 오른쪽 위를 향한다.
     guitarSticker(ctx, { x: 175 * s, y: footerTop / 2 + 30, rotate: 32, scale: 1.4 * s });
 
-    // 피아노 건반 패치: 오른쪽 가장자리, 아래쪽 사진 옆
-    patch(ctx, { x: W - 10 - 170 * s, y: footerTop * 0.76, w: 340, h: 156, rotate: 7, shape: 'round', scale: s }, () => {
+    // 피아노 건반 패치: 오른쪽 가장자리. 2×2는 2번·4번 사진 사이(기타와 마주 보게),
+    // 세로 네 컷은 셋째·넷째 사진 사이
+    const pianoY = strip ? footerTop * 0.76 : footerTop / 2 + 20;
+    patch(ctx, { x: W - 10 - 170 * s, y: pianoY, w: 340, h: 156, rotate: 7, shape: 'round', scale: s }, () => {
       drawKeys(ctx);
     });
 
