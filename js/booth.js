@@ -3,19 +3,23 @@ import { LAYOUTS, CELL_ASPECT, renderComposite } from './compose.js';
 import { startCamera, capture } from './camera.js';
 import { canRecordVideo, recordClip, composeVideo } from './video.js';
 import { unlockAudio, beep, shutter } from './sound.js';
+import { isIOS, saveToDevice } from './share.js';
 import {
   isConfigured, newPhotoId, photoPageUrl, saveFile, uploadFile, retryPending, pendingCount,
 } from './storage.js';
 
-// 부스 화면 흐름: 시작 → 레이아웃 → 촬영 → 확인 → QR → 다시 시작
+// 부스 화면 흐름: (기기 고르기) → 시작 → 레이아웃 → 촬영 → 확인 → QR → 다시 시작
 // 촬영하는 동안 컷마다 짧은 영상도 녹화해 두었다가, 저장하면 영상 한 편으로 합쳐 함께 올린다.
+// 휴대폰으로 열면 세로 화면에 맞추고, QR 대신 그 자리에서 바로 휴대폰에 저장한다(저장소에 올리지 않음).
 
 const $ = (selector) => document.querySelector(selector);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const PREVIEW_SCALE = 0.75;
+const DEVICE_KEY = 'jurinecut-device';
 
 const state = {
+  device: 'tablet',     // 'tablet'(아이패드 포토부스) | 'phone'(휴대폰)
   screen: 'start',
   session: 0,           // 처음으로 돌아갈 때마다 바뀐다. 늦게 끝난 업로드가 다음 손님 화면을 건드리지 않게 한다.
   layout: LAYOUTS.grid,
@@ -27,10 +31,13 @@ const state = {
   wakeLock: null,
   resultUrl: null,
   qrTimer: null,
+  phoneFiles: { photo: null, clip: null }, // 휴대폰 모드에서 저장할 파일
   lastTouch: Date.now(),
 };
 
 const actions = {
+  'pick-device': (el) => pickDevice(el.dataset.id),
+  'change-device': () => show('device'),
   start: startSession,
   home: goHome,
   'pick-layout': (el) => pickLayout(el.dataset.id),
@@ -38,6 +45,8 @@ const actions = {
   'shoot-start': runSequence,
   retake: enterShoot,
   save: saveResult,
+  'save-photo': () => saveToDevice(state.phoneFiles.photo),
+  'save-clip': () => saveToDevice(state.phoneFiles.clip),
 };
 
 document.addEventListener('click', (event) => {
@@ -59,16 +68,60 @@ function goHome() {
   state.session += 1;
   clearInterval(state.qrTimer);
   releaseShots();
+  state.phoneFiles = { photo: null, clip: null };
   state.saving = false;
   show('start');
   updateStatusLine();
 }
 
 async function startSession() {
-  enterFullscreen();
+  if (!isPhone()) {
+    enterFullscreen();
+    keepAwake();
+  }
   unlockAudio();
-  keepAwake();
   if (await ensureCamera()) show('layout');
+}
+
+// ---- 기기 고르기 ----
+// 고른 기기는 이 브라우저에 기억해 두고, 시작 화면의 '기기 바꾸기'로 다시 고를 수 있다.
+
+const isPhone = () => state.device === 'phone';
+
+// 처음 열었을 때 미리 골라 둘 기기: 화면이 작고 손가락으로 쓰면 휴대폰
+function guessDevice() {
+  const small = Math.min(screen.width, screen.height) < 600;
+  return small && matchMedia('(pointer: coarse)').matches ? 'phone' : 'tablet';
+}
+
+function savedDevice() {
+  try {
+    const value = localStorage.getItem(DEVICE_KEY);
+    return value === 'phone' || value === 'tablet' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+// 화면 모양은 CSS가 <html data-device="...">를 보고 바꾼다
+function applyDevice(device) {
+  state.device = device;
+  document.documentElement.dataset.device = device;
+  for (const card of document.querySelectorAll('[data-action="pick-device"]')) {
+    card.classList.toggle('selected', card.dataset.id === device);
+  }
+}
+
+function pickDevice(device) {
+  try {
+    localStorage.setItem(DEVICE_KEY, device);
+  } catch {
+    // 사생활 보호 모드 등으로 기억하지 못해도 이번에는 그대로 쓴다
+  }
+  applyDevice(device);
+  show('start');
+  updateStatusLine();
+  if (device === 'tablet') ensureCamera();
 }
 
 // 사파리 탭에서 쓸 때 주소창을 숨긴다. 홈 화면 앱은 이미 전체 화면이라 건너뛴다.
@@ -216,7 +269,6 @@ async function saveResult() {
   if (state.saving) return;
   state.saving = true;
   const session = state.session;
-  const id = newPhotoId();
   const layout = state.layout;
   const clips = state.clips;
   state.clips = [];
@@ -227,6 +279,12 @@ async function saveResult() {
   if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
   state.resultUrl = URL.createObjectURL(photo);
 
+  if (isPhone()) {
+    showOnPhone(photo, layout, clips, session);
+    return;
+  }
+
+  const id = newPhotoId();
   $('#qr-photo').src = state.resultUrl;
   $('#qr-code').src = makeQr(photoPageUrl(id));
   $('#qr-home').textContent = '처음으로';
@@ -294,6 +352,45 @@ function setVideoState(name) {
   $('#qr-video').textContent = VIDEO_MESSAGES[name];
 }
 
+// ---- 휴대폰: QR 대신 바로 저장 ----
+
+async function showOnPhone(photo, layout, clips, session) {
+  const name = `jurinecut-${timestamp()}`;
+  state.phoneFiles = { photo: new File([photo], `${name}.jpg`, { type: 'image/jpeg' }), clip: null };
+  $('#done-photo').src = state.resultUrl;
+  $('#screen-done').dataset.layout = layout.id;
+  $('#done-hint').textContent = isIOS
+    ? "'저장하기'를 누르고 '이미지 저장'(영상은 '비디오 저장')을 고르면 사진 앱에 들어가요."
+    : "'저장하기'를 누르면 휴대폰에 내려받아져요.";
+
+  const clipButton = $('#save-clip');
+  const hasVideo = clips.length === layout.shots;
+  clipButton.hidden = !hasVideo;
+  clipButton.disabled = true;
+  clipButton.textContent = '영상 만드는 중…';
+  show('done');
+  if (!hasVideo) return;
+
+  try {
+    const video = await composeVideo(layout, clips);
+    if (session !== state.session) return;
+    const ext = video.type.includes('mp4') ? 'mp4' : 'webm';
+    state.phoneFiles.clip = new File([video], `${name}.${ext}`, { type: video.type });
+    clipButton.textContent = '영상 저장하기';
+    clipButton.disabled = false;
+  } catch (err) {
+    console.error('영상 만들기 실패', err);
+    if (session === state.session) clipButton.textContent = '영상은 만들지 못했어요';
+  }
+}
+
+// 파일 이름용 시각: 20261117-153012
+function timestamp(date = new Date()) {
+  const two = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}${two(date.getMonth() + 1)}${two(date.getDate())}`
+    + `-${two(date.getHours())}${two(date.getMinutes())}${two(date.getSeconds())}`;
+}
+
 function startQrTimer() {
   let left = CONFIG.qrScreenSeconds;
   const button = $('#qr-home');
@@ -315,9 +412,11 @@ function makeQr(url) {
 
 // ---- 현장 운영 ----
 
-// 손님이 중간에 떠나면 일정 시간 뒤 처음 화면으로 돌아간다(촬영 중에는 제외)
+// 손님이 중간에 떠나면 일정 시간 뒤 처음 화면으로 돌아간다(촬영 중에는 제외).
+// 휴대폰은 본인이 쓰는 기기라 돌아가지 않는다.
 document.addEventListener('pointerdown', () => { state.lastTouch = Date.now(); }, true);
 setInterval(() => {
+  if (isPhone()) return;
   const idle = Date.now() - state.lastTouch > CONFIG.idleResetSeconds * 1000;
   const resettable = ['layout', 'review'].includes(state.screen)
     || (state.screen === 'shoot' && !state.shooting);
@@ -334,6 +433,10 @@ window.addEventListener('online', syncPending);
 
 async function updateStatusLine() {
   const el = $('#status-line');
+  if (isPhone()) {
+    el.textContent = '';
+    return;
+  }
   if (!isConfigured()) {
     el.textContent = '테스트 모드 · 사진 저장소 미연결';
     return;
@@ -375,8 +478,13 @@ function replay(el, className) {
 
 // ---- 시작 ----
 
+const remembered = savedDevice();
+applyDevice(remembered ?? guessDevice());
 $('#event-line').textContent = `${CONFIG.eventTitle} · ${CONFIG.eventSubtitle}`;
 $('.viewfinder').classList.toggle('mirror', CONFIG.mirror);
 renderLayoutChoices();
+show(remembered ? 'start' : 'device');
 syncPending();
-ensureCamera(); // 운영진이 앱을 켤 때 권한을 한 번 허용해 두면 손님에게는 묻지 않는다
+// 아이패드는 운영진이 앱을 켤 때 권한을 한 번 허용해 두면 손님에게는 묻지 않는다.
+// 휴대폰은 '시작'을 누를 때 카메라를 켠다.
+if (remembered === 'tablet') ensureCamera();

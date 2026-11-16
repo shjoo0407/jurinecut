@@ -54,8 +54,23 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.55; transform: none; }
+.btn[hidden] { display: none; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
 
 .actions { display: flex; gap: 20px; }
+
+/* ---- 기기 고르기 ---- */
+
+#screen-device .sub { margin-top: -2vh; color: var(--muted); font-size: clamp(16px, 2vw, 22px); }
+.device-card { --card-width: 28vw; justify-content: center; gap: 14px; padding: 4vh 2vw; text-align: center; }
+.device-card svg {
+  height: clamp(64px, 11vh, 120px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
 
 /* ---- 시작 ---- */
 
@@ -69,6 +84,16 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 .title { font-size: clamp(88px, 13vw, 180px); font-weight: 900; letter-spacing: -0.03em; line-height: 1.05; }
 .tap-hint { margin-top: 3vh; font-size: 26px; font-weight: 700; color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
 .status-line { position: absolute; right: 32px; bottom: 24px; font-size: 16px; color: var(--muted); }
+.corner-link {
+  position: absolute;
+  left: 24px;
+  top: max(20px, env(safe-area-inset-top));
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 16px;
+  color: var(--muted);
+}
 
 @keyframes pulse { 50% { opacity: 0.35; } }
 
@@ -203,6 +228,76 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
 .qr-panel[data-state="delayed"] #qr-message,
 .qr-panel[data-state="demo"] #qr-message { color: var(--warn); }
 
+/* ---- 휴대폰: 완성(QR 대신 바로 저장) ---- */
+
+#screen-done { gap: 16px; }
+#done-photo {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100dvh - 330px);
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.done-panel { width: min(100%, 340px); display: flex; flex-direction: column; gap: 10px; text-align: center; }
+.done-panel h2 { margin-bottom: 4px; }
+.done-panel .btn { width: 100%; padding: 0 12px; }
+#done-hint { font-size: 14px; line-height: 1.5; color: var(--muted); }
+
+/* 세로 네 컷은 길쭉해서 버튼을 옆에 둔다. 휴대폰을 가로로 들었을 때도 옆에 둔다. */
+#screen-done[data-layout="strip"] { flex-direction: row; }
+#screen-done[data-layout="strip"] #done-photo { max-width: 42vw; max-height: calc(100dvh - 32px); }
+#screen-done[data-layout="strip"] .done-panel { flex: 1; }
+#screen-done[data-layout="strip"] .done-panel .btn { font-size: 16px; }
+@media (orientation: landscape) {
+  #screen-done { flex-direction: row; }
+  #done-photo { max-width: 52vw; max-height: calc(100dvh - 32px); }
+}
+
+/* ================= 휴대폰 =================
+   아이패드용 크기를 휴대폰에 맞게 줄이고, 세로로 들었을 때는 위아래로 쌓는다. */
+
+:root[data-device="phone"] h2 { font-size: 24px; }
+:root[data-device="phone"] .screen {
+  gap: 2.4vh;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+:root[data-device="phone"] .btn { min-height: 54px; padding: 0 26px; font-size: 18px; }
+:root[data-device="phone"] .actions { gap: 10px; }
+
+:root[data-device="phone"] #screen-device .sub { margin-top: -1vh; font-size: 15px; }
+:root[data-device="phone"] .device-card svg { height: 72px; }
+
+:root[data-device="phone"] .logo { height: 9vh; margin-bottom: 1vh; }
+:root[data-device="phone"] .eyebrow { font-size: 15px; text-align: center; }
+:root[data-device="phone"] .title { font-size: clamp(56px, 19vmin, 100px); }
+:root[data-device="phone"] .tap-hint { font-size: 19px; }
+:root[data-device="phone"] .corner-link { left: 16px; top: max(16px, env(safe-area-inset-top)); font-size: 14px; }
+
+:root[data-device="phone"] .choices { gap: 12px; }
+:root[data-device="phone"] .card { flex: 1 1 0; min-width: 0; max-width: 280px; justify-content: center; gap: 8px; padding: 14px 10px; }
+:root[data-device="phone"] .card strong { font-size: 18px; }
+:root[data-device="phone"] .card span { font-size: 14px; text-align: center; }
+
+:root[data-device="phone"] #countdown { font-size: min(24vh, 36vw); }
+:root[data-device="phone"] .shoot-panel { width: 28vw; gap: 12px; }
+:root[data-device="phone"] #shot-counter { font-size: 22px; }
+:root[data-device="phone"] .slots { grid-template-columns: repeat(4, 1fr); width: 100%; gap: 6px; }
+:root[data-device="phone"] .slot { border-radius: 6px; font-size: 15px; }
+
+:root[data-device="phone"] #review-preview canvas {
+  max-width: 100%;
+  max-height: calc(100dvh - 32px - 4.8vh - 30px - 54px);
+}
+
+@media (orientation: portrait) {
+  :root[data-device="phone"] #screen-shoot { flex-direction: column; gap: 16px; }
+  :root[data-device="phone"] .viewfinder { width: min(100%, calc((100dvh - 220px) * 4 / 3)); }
+  :root[data-device="phone"] .shoot-panel { width: 100%; }
+  :root[data-device="phone"] #shoot-idle { flex-direction: row; justify-content: center; }
+  /* 촬영 중 버튼이 사라져도 자리는 남겨서 카메라 화면이 움직이지 않게 한다 */
+  :root[data-device="phone"] #shoot-idle[hidden] { display: flex; visibility: hidden; }
+}
+
 /* ---- 알림 ---- */
 
 #toast {
@@ -210,7 +305,7 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 800; }
   left: 50%;
   bottom: 40px;
   transform: translateX(-50%);
-  max-width: 80vw;
+  max-width: calc(100vw - 32px);
   padding: 16px 28px;
   border-radius: 14px;
   background: #2a2a33;

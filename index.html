@@ -19,7 +19,25 @@
   <script type="module" src="js/booth.js"></script>
 </head>
 <body>
-  <section class="screen active" id="screen-start" data-action="start">
+  <section class="screen" id="screen-device">
+    <h2>어떤 기기로 찍나요?</h2>
+    <p class="sub">고른 기기에 맞게 화면을 맞춰 드려요</p>
+    <div class="choices">
+      <button class="card device-card" data-action="pick-device" data-id="phone">
+        <svg viewBox="0 0 64 100" aria-hidden="true"><rect x="6" y="4" width="52" height="92" rx="10"/><line x1="26" y1="85" x2="38" y2="85"/></svg>
+        <strong>휴대폰</strong>
+        <span>내 휴대폰으로 찍고<br>바로 저장해요</span>
+      </button>
+      <button class="card device-card" data-action="pick-device" data-id="tablet">
+        <svg viewBox="0 0 140 100" aria-hidden="true"><rect x="4" y="12" width="132" height="76" rx="10"/><circle cx="123" cy="50" r="3"/></svg>
+        <strong>아이패드</strong>
+        <span>포토부스로 세워 두고<br>QR로 나눠줘요</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-start" data-action="start">
+    <button class="corner-link" data-action="change-device">기기 바꾸기</button>
     <img class="logo" src="assets/logo.png" alt="주리랑 로고">
     <p class="eyebrow" id="event-line"></p>
     <h1 class="title">주리네컷</h1>
@@ -71,6 +89,18 @@
       <p id="qr-message"></p>
       <p id="qr-video"></p>
       <button class="btn" id="qr-home" data-action="home">처음으로</button>
+    </div>
+  </section>
+
+  <!-- 휴대폰 모드의 마지막 화면: QR 대신 바로 저장 -->
+  <section class="screen" id="screen-done">
+    <img id="done-photo" alt="완성된 주리네컷 사진">
+    <div class="done-panel">
+      <h2>완성됐어요!</h2>
+      <button class="btn primary" data-action="save-photo">사진 저장하기</button>
+      <button class="btn" id="save-clip" data-action="save-clip" disabled></button>
+      <p id="done-hint"></p>
+      <button class="btn ghost" data-action="home">처음으로</button>
     </div>
   </section>
 

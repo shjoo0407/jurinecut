@@ -1,5 +1,6 @@
 import { CONFIG } from './config.js';
 import { publicFileUrl } from './storage.js';
+import { isIOS, saveToDevice } from './share.js';
 
 // 손님이 QR로 여는 사진·영상 저장 페이지.
 // 부스의 인터넷이 느리면 늦게 올라올 수 있어서, 없으면 잠시 뒤 다시 불러온다.
@@ -9,8 +10,6 @@ const RETRY_MS = 5000;
 const MAX_TRIES = 60; // 약 5분
 
 const $ = (selector) => document.querySelector(selector);
-const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const id = new URLSearchParams(location.search).get('id') ?? '';
 const files = { photo: null, clip: null };
 
@@ -84,22 +83,5 @@ async function prefetch(url, name) {
   }
 }
 
-async function saveFile(file, fallbackUrl) {
-  // 아이폰은 공유 시트의 '이미지 저장'·'비디오 저장'이 사진 앱으로 바로 들어간다
-  if (isIOS && file && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file] });
-      return;
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-    }
-  }
-  // 그 밖의 휴대폰은 파일로 내려받는다
-  const link = document.createElement('a');
-  link.href = file ? URL.createObjectURL(file) : fallbackUrl;
-  link.download = file?.name ?? '';
-  link.click();
-}
-
-$('#save').addEventListener('click', () => saveFile(files.photo, $('#photo').src));
-$('#save-clip').addEventListener('click', () => saveFile(files.clip, $('#clip').src));
+$('#save').addEventListener('click', () => saveToDevice(files.photo, $('#photo').src));
+$('#save-clip').addEventListener('click', () => saveToDevice(files.clip, $('#clip').src));
